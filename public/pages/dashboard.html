@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard – Technician Checklist</title>
+  <link rel="stylesheet" href="/css/styles.css" />
+</head>
+<body>
+
+<nav class="navbar">
+  <a class="navbar-brand" href="/">📋 Checklist App</a>
+  <ul class="navbar-nav" id="navLinks"></ul>
+  <div class="navbar-right">
+    <span class="navbar-user" id="navUser"></span>
+    <button class="btn btn-sm btn-secondary" id="logoutBtn">Logout</button>
+  </div>
+</nav>
+
+<div class="container">
+  <h1 class="page-title">Dashboard</h1>
+
+  <!-- Summary Stats -->
+  <div class="stats-grid" id="statsGrid">
+    <div class="stat-card">
+      <span class="stat-value" id="statSubmissions">—</span>
+      <span class="stat-label">Submissions Today</span>
+    </div>
+    <div class="stat-card warning">
+      <span class="stat-value" id="statFlagged">—</span>
+      <span class="stat-label">Flagged Items</span>
+    </div>
+    <div class="stat-card danger">
+      <span class="stat-value" id="statNotWorking">—</span>
+      <span class="stat-label">Not Working</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-value" id="statClassrooms">—</span>
+      <span class="stat-label">Classrooms</span>
+    </div>
+  </div>
+
+  <!-- Filters -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">Filter Submissions</span>
+      <button class="btn btn-secondary btn-sm" id="exportBtn">⬇ Export CSV</button>
+    </div>
+    <div class="filter-bar">
+      <div class="form-group">
+        <label class="form-label">From Date</label>
+        <input class="form-control" type="date" id="filterStartDate" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">To Date</label>
+        <input class="form-control" type="date" id="filterEndDate" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Classroom</label>
+        <select class="form-control" id="filterClassroom">
+          <option value="">All Classrooms</option>
+        </select>
+      </div>
+      <div class="form-group" id="techFilterGroup">
+        <label class="form-label">Technician</label>
+        <select class="form-control" id="filterTechnician">
+          <option value="">All Technicians</option>
+        </select>
+      </div>
+      <div class="form-group" style="align-self:flex-end">
+        <button class="btn btn-primary" id="applyFiltersBtn">Apply</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Issues section -->
+  <div class="card" id="issuesCard">
+    <div class="card-header">
+      <span class="card-title">⚠️ Flagged Items (Today)</span>
+    </div>
+    <div id="issuesList">
+      <div class="spinner"></div>
+    </div>
+  </div>
+
+  <!-- Submissions table -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">Submissions</span>
+    </div>
+    <div id="submissionsContainer">
+      <div class="spinner"></div>
+    </div>
+  </div>
+</div>
+
+<script src="/js/dashboard.js"></script>
+</body>
+</html>

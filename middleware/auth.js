@@ -2,7 +2,7 @@
 
 function requireAuth(req, res, next) {
   if (!req.session || !req.session.user) {
-    if (req.path.startsWith('/api/')) {
+    if (req.originalUrl.startsWith('/api/')) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
     return res.redirect('/');
@@ -12,13 +12,13 @@ function requireAuth(req, res, next) {
 
 function requireAdmin(req, res, next) {
   if (!req.session || !req.session.user) {
-    if (req.path.startsWith('/api/')) {
+    if (req.originalUrl.startsWith('/api/')) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
     return res.redirect('/');
   }
   if (req.session.user.role !== 'admin') {
-    if (req.path.startsWith('/api/')) {
+    if (req.originalUrl.startsWith('/api/')) {
       return res.status(403).json({ error: 'Forbidden' });
     }
     return res.redirect('/checklist');
@@ -26,14 +26,4 @@ function requireAdmin(req, res, next) {
   next();
 }
 
-function requireTechnician(req, res, next) {
-  if (!req.session || !req.session.user) {
-    if (req.path.startsWith('/api/')) {
-      return res.status(401).json({ error: 'Unauthorized' });
-    }
-    return res.redirect('/');
-  }
-  next();
-}
-
-module.exports = { requireAuth, requireAdmin, requireTechnician };
+module.exports = { requireAuth, requireAdmin };

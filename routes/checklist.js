@@ -8,21 +8,6 @@ const router = express.Router();
 
 router.use(requireAuth);
 
-// GET /api/equipment/:classroomId  (public for technicians too)
-router.get('/equipment/:classroomId', (req, res) => {
-  const { classroomId } = req.params;
-  const equipment = db
-    .prepare('SELECT * FROM equipment WHERE classroom_id = ? ORDER BY name')
-    .all(classroomId);
-  res.json(equipment);
-});
-
-// GET /api/classrooms (public for dropdown)
-router.get('/classrooms', (req, res) => {
-  const classrooms = db.prepare('SELECT * FROM classrooms ORDER BY name').all();
-  res.json(classrooms);
-});
-
 // POST /api/checklists
 router.post('/', (req, res) => {
   const { classroom_id, submission_date, general_notes, items } = req.body;

@@ -92,9 +92,12 @@ loadBtn.addEventListener('click', async () => {
 
     // Check for existing submission
     const date = submissionDateInput.value;
-    const existing = await apiFetch(
-      `/api/checklists?classroom_id=${classroomId}&technician_id=${currentUser.id}&date=${date}`
-    );
+    const params = new URLSearchParams({
+      classroom_id: classroomId,
+      technician_id: currentUser.id,
+      date,
+    });
+    const existing = await apiFetch(`/api/checklists?${params}`);
     const existingAlert = document.getElementById('existingAlert');
     if (existing.length > 0) {
       existingAlert.classList.remove('hidden');

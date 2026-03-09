@@ -3,23 +3,23 @@
 const express = require('express');
 const db = require('../db/database');
 const bcrypt = require('bcryptjs');
-const { requireAdmin } = require('../middleware/auth');
+const { requireAuth, requireAdmin } = require('../middleware/auth');
 
 const router = express.Router();
 
-// All admin routes require admin role
-router.use(requireAdmin);
+// All routes require at least authentication
+router.use(requireAuth);
 
 // ── Classrooms ────────────────────────────────────────────────────────────────
 
-// GET /api/classrooms
+// GET /api/classrooms — accessible to all authenticated users (for dropdown menus)
 router.get('/classrooms', (req, res) => {
   const classrooms = db.prepare('SELECT * FROM classrooms ORDER BY name').all();
   res.json(classrooms);
 });
 
 // POST /api/classrooms
-router.post('/classrooms', (req, res) => {
+router.post('/classrooms', requireAdmin, (req, res) => {
   const { name, building, floor } = req.body;
   if (!name || !name.trim()) {
     return res.status(400).json({ error: 'Classroom name is required' });
@@ -31,7 +31,7 @@ router.post('/classrooms', (req, res) => {
 });
 
 // PUT /api/classrooms/:id
-router.put('/classrooms/:id', (req, res) => {
+router.put('/classrooms/:id', requireAdmin, (req, res) => {
   const { id } = req.params;
   const { name, building, floor } = req.body;
   if (!name || !name.trim()) {
@@ -47,7 +47,7 @@ router.put('/classrooms/:id', (req, res) => {
 });
 
 // DELETE /api/classrooms/:id
-router.delete('/classrooms/:id', (req, res) => {
+router.delete('/classrooms/:id', requireAdmin, (req, res) => {
   const { id } = req.params;
   const result = db.prepare('DELETE FROM classrooms WHERE id = ?').run(id);
   if (result.changes === 0) {
@@ -58,7 +58,7 @@ router.delete('/classrooms/:id', (req, res) => {
 
 // ── Equipment ─────────────────────────────────────────────────────────────────
 
-// GET /api/equipment/:classroomId
+// GET /api/equipment/:classroomId — accessible to all authenticated users
 router.get('/equipment/:classroomId', (req, res) => {
   const { classroomId } = req.params;
   const equipment = db
@@ -68,7 +68,7 @@ router.get('/equipment/:classroomId', (req, res) => {
 });
 
 // POST /api/equipment
-router.post('/equipment', (req, res) => {
+router.post('/equipment', requireAdmin, (req, res) => {
   const { classroom_id, name, description } = req.body;
   if (!classroom_id || !name || !name.trim()) {
     return res.status(400).json({ error: 'classroom_id and name are required' });
@@ -86,7 +86,7 @@ router.post('/equipment', (req, res) => {
 });
 
 // PUT /api/equipment/:id
-router.put('/equipment/:id', (req, res) => {
+router.put('/equipment/:id', requireAdmin, (req, res) => {
   const { id } = req.params;
   const { name, description } = req.body;
   if (!name || !name.trim()) {
@@ -102,7 +102,7 @@ router.put('/equipment/:id', (req, res) => {
 });
 
 // DELETE /api/equipment/:id
-router.delete('/equipment/:id', (req, res) => {
+router.delete('/equipment/:id', requireAdmin, (req, res) => {
   const { id } = req.params;
   const result = db.prepare('DELETE FROM equipment WHERE id = ?').run(id);
   if (result.changes === 0) {
@@ -113,8 +113,8 @@ router.delete('/equipment/:id', (req, res) => {
 
 // ── Technicians ───────────────────────────────────────────────────────────────
 
-// GET /api/technicians
-router.get('/technicians', (req, res) => {
+// GET /api/technicians — admin only
+router.get('/technicians', requireAdmin, (req, res) => {
   const technicians = db
     .prepare("SELECT id, username, full_name, role, created_at FROM users WHERE role = 'technician' ORDER BY full_name")
     .all();
@@ -122,7 +122,7 @@ router.get('/technicians', (req, res) => {
 });
 
 // POST /api/technicians
-router.post('/technicians', async (req, res) => {
+router.post('/technicians', requireAdmin, async (req, res) => {
   const { username, password, full_name } = req.body;
   if (!username || !username.trim() || !password || !full_name || !full_name.trim()) {
     return res.status(400).json({ error: 'username, password, and full_name are required' });
@@ -146,7 +146,7 @@ router.post('/technicians', async (req, res) => {
 });
 
 // DELETE /api/technicians/:id
-router.delete('/technicians/:id', (req, res) => {
+router.delete('/technicians/:id', requireAdmin, (req, res) => {
   const { id } = req.params;
   const user = db.prepare("SELECT id FROM users WHERE id = ? AND role = 'technician'").get(id);
   if (!user) {

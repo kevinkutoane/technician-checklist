@@ -7,7 +7,7 @@ const db = require('../db/database');
 const router = express.Router();
 
 // POST /api/auth/login
-router.post('/login', (req, res) => {
+router.post('/login', async (req, res) => {
   const { username, password } = req.body;
 
   if (!username || !password) {
@@ -20,8 +20,9 @@ router.post('/login', (req, res) => {
     return res.status(401).json({ error: 'Invalid credentials' });
   }
 
-  bcrypt.compare(password, user.password, (err, match) => {
-    if (err || !match) {
+  try {
+    const match = await bcrypt.compare(password, user.password);
+    if (!match) {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
@@ -38,7 +39,9 @@ router.post('/login', (req, res) => {
       full_name: user.full_name,
       role: user.role,
     });
-  });
+  } catch {
+    return res.status(500).json({ error: 'Authentication error' });
+  }
 });
 
 // POST /api/auth/logout

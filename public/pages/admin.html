@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin – Technician Checklist</title>
+  <link rel="stylesheet" href="/css/styles.css" />
+</head>
+<body>
+
+<nav class="navbar">
+  <a class="navbar-brand" href="/">📋 Checklist App</a>
+  <ul class="navbar-nav" id="navLinks"></ul>
+  <div class="navbar-right">
+    <span class="navbar-user" id="navUser"></span>
+    <button class="btn btn-sm btn-secondary" id="logoutBtn">Logout</button>
+  </div>
+</nav>
+
+<div class="container">
+  <h1 class="page-title">Admin Panel</h1>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="classrooms">Classrooms</button>
+    <button class="tab-btn" data-tab="equipment">Equipment</button>
+    <button class="tab-btn" data-tab="technicians">Technicians</button>
+    <button class="tab-btn" data-tab="submissions">Submissions</button>
+  </div>
+
+  <!-- ─── Classrooms Tab ─────────────────────────────────────────────── -->
+  <div id="tab-classrooms" class="tab-content active">
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Classrooms</span>
+        <button class="btn btn-primary btn-sm" id="addClassroomBtn">+ Add Classroom</button>
+      </div>
+      <div id="classroomsList"><div class="spinner"></div></div>
+    </div>
+  </div>
+
+  <!-- ─── Equipment Tab ─────────────────────────────────────────────── -->
+  <div id="tab-equipment" class="tab-content">
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Equipment</span>
+        <button class="btn btn-primary btn-sm" id="addEquipmentBtn">+ Add Equipment</button>
+      </div>
+      <div class="form-group mb-3">
+        <label class="form-label" for="equipClassroomFilter">Filter by Classroom</label>
+        <select class="form-control" id="equipClassroomFilter">
+          <option value="">-- Select a classroom --</option>
+        </select>
+      </div>
+      <div id="equipmentList"><div class="empty-state"><div class="empty-icon">📦</div><p>Select a classroom to view equipment</p></div></div>
+    </div>
+  </div>
+
+  <!-- ─── Technicians Tab ───────────────────────────────────────────── -->
+  <div id="tab-technicians" class="tab-content">
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Technicians</span>
+        <button class="btn btn-primary btn-sm" id="addTechnicianBtn">+ Add Technician</button>
+      </div>
+      <div id="techniciansList"><div class="spinner"></div></div>
+    </div>
+  </div>
+
+  <!-- ─── Submissions Tab ───────────────────────────────────────────── -->
+  <div id="tab-submissions" class="tab-content">
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">All Submissions</span>
+      </div>
+      <div class="filter-bar">
+        <div class="form-group">
+          <label class="form-label">From Date</label>
+          <input class="form-control" type="date" id="subStartDate" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">To Date</label>
+          <input class="form-control" type="date" id="subEndDate" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Classroom</label>
+          <select class="form-control" id="subClassroomFilter">
+            <option value="">All</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Technician</label>
+          <select class="form-control" id="subTechFilter">
+            <option value="">All</option>
+          </select>
+        </div>
+        <div class="form-group" style="align-self:flex-end">
+          <button class="btn btn-primary" id="loadSubmissionsBtn">Load</button>
+        </div>
+      </div>
+      <div id="submissionsList"><div class="empty-state"><div class="empty-icon">📄</div><p>Apply filters and click Load</p></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ─── Modals ──────────────────────────────────────────────────────────── -->
+
+<!-- Classroom Modal -->
+<div class="modal-overlay" id="classroomModal">
+  <div class="modal">
+    <h3 class="modal-title" id="classroomModalTitle">Add Classroom</h3>
+    <div id="classroomModalError" class="alert alert-danger hidden"></div>
+    <input type="hidden" id="classroomId" />
+    <div class="form-group">
+      <label class="form-label">Name *</label>
+      <input class="form-control" type="text" id="classroomName" placeholder="e.g. Classroom 1" />
+    </div>
+    <div class="form-group">
+      <label class="form-label">Building</label>
+      <input class="form-control" type="text" id="classroomBuilding" placeholder="e.g. Main Block" />
+    </div>
+    <div class="form-group">
+      <label class="form-label">Floor</label>
+      <input class="form-control" type="text" id="classroomFloor" placeholder="e.g. Ground" />
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" id="closeClassroomModal">Cancel</button>
+      <button class="btn btn-primary" id="saveClassroomBtn">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Equipment Modal -->
+<div class="modal-overlay" id="equipmentModal">
+  <div class="modal">
+    <h3 class="modal-title" id="equipmentModalTitle">Add Equipment</h3>
+    <div id="equipmentModalError" class="alert alert-danger hidden"></div>
+    <input type="hidden" id="equipmentId" />
+    <div class="form-group">
+      <label class="form-label">Classroom *</label>
+      <select class="form-control" id="equipmentClassroom"></select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Equipment Name *</label>
+      <input class="form-control" type="text" id="equipmentName" placeholder="e.g. Projector" />
+    </div>
+    <div class="form-group">
+      <label class="form-label">Description</label>
+      <input class="form-control" type="text" id="equipmentDescription" placeholder="Optional description" />
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" id="closeEquipmentModal">Cancel</button>
+      <button class="btn btn-primary" id="saveEquipmentBtn">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Technician Modal -->
+<div class="modal-overlay" id="technicianModal">
+  <div class="modal">
+    <h3 class="modal-title">Add Technician</h3>
+    <div id="technicianModalError" class="alert alert-danger hidden"></div>
+    <div class="form-group">
+      <label class="form-label">Full Name *</label>
+      <input class="form-control" type="text" id="techFullName" placeholder="e.g. John Smith" />
+    </div>
+    <div class="form-group">
+      <label class="form-label">Username *</label>
+      <input class="form-control" type="text" id="techUsername" placeholder="e.g. jsmith" />
+    </div>
+    <div class="form-group">
+      <label class="form-label">Password *</label>
+      <input class="form-control" type="password" id="techPassword" placeholder="Min 6 characters" />
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" id="closeTechnicianModal">Cancel</button>
+      <button class="btn btn-primary" id="saveTechnicianBtn">Add Technician</button>
+    </div>
+  </div>
+</div>
+
+<script src="/js/admin.js"></script>
+</body>
+</html>

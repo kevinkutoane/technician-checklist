@@ -119,9 +119,12 @@ router.get('/', (req, res) => {
     sql += ' AND cs.classroom_id = ?';
     params.push(classroom_id);
   }
-  if (technician_id) {
+  // Security: non-admins can only see their own submissions
+  const effectiveTechnicianId =
+    req.session.user.role !== 'admin' ? req.session.user.id : (technician_id || null);
+  if (effectiveTechnicianId) {
     sql += ' AND cs.technician_id = ?';
-    params.push(technician_id);
+    params.push(effectiveTechnicianId);
   }
 
   sql += ' ORDER BY cs.submission_date DESC, cs.created_at DESC';

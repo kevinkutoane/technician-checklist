@@ -32,6 +32,14 @@ router.get('/summary', (req, res) => {
     `)
     .get(today).count;
 
+  const totalAssetAgreements = db
+    .prepare("SELECT COUNT(*) AS count FROM asset_agreements WHERE submission_date = ?")
+    .get(today).count;
+
+  const totalQAChecklists = db
+    .prepare("SELECT COUNT(*) AS count FROM qa_submissions WHERE submission_date = ?")
+    .get(today).count;
+
   const totalClassrooms = db.prepare('SELECT COUNT(*) AS count FROM classrooms').get().count;
   const totalTechnicians = db
     .prepare("SELECT COUNT(*) AS count FROM users WHERE role = 'technician'")
@@ -42,6 +50,8 @@ router.get('/summary', (req, res) => {
     totalSubmissions,
     flaggedItems,
     notWorkingItems,
+    totalAssetAgreements,
+    totalQAChecklists,
     totalClassrooms,
     totalTechnicians,
   });
@@ -75,6 +85,93 @@ router.get('/issues', (req, res) => {
 
   res.json(issues);
 });
+
+// GET /api/dashboard/charts
+router.get('/charts', (req, res) => {
+  // ── 1. Last 7 days: submissions AND flagged items per day ──────────────────
+  const dayLabels = [];
+  const checksData = [];
+  const flagsData = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    const dateStr = d.toISOString().slice(0, 10);
+    dayLabels.push(d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }));
+
+    const checks = db.prepare(
+      'SELECT COUNT(*) as c FROM checklist_submissions WHERE submission_date = ?'
+    ).get(dateStr).c;
+
+    const flags = db.prepare(`
+      SELECT COUNT(*) as c FROM checklist_items ci
+      JOIN checklist_submissions cs ON ci.submission_id = cs.id
+      WHERE cs.submission_date = ? AND ci.status IN ('not_working','needs_repair')
+    `).get(dateStr).c;
+
+    checksData.push(checks);
+    flagsData.push(flags);
+  }
+
+  // ── 2. Equipment status mix (last 7 days) ──────────────────────────────────
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - 6);
+  const cutoffStr = cutoff.toISOString().slice(0, 10);
+
+  const statusMix = db.prepare(`
+    SELECT ci.status, COUNT(*) as count
+    FROM checklist_items ci
+    JOIN checklist_submissions cs ON ci.submission_id = cs.id
+    WHERE cs.submission_date >= ?
+    GROUP BY ci.status
+  `).all(cutoffStr);
+
+  const statusMap = { working: 0, needs_repair: 0, not_working: 0 };
+  statusMix.forEach(r => { statusMap[r.status] = r.count; });
+
+  // ── 3. Top 5 classrooms by flagged item count (last 7 days) ───────────────
+  const topClassrooms = db.prepare(`
+    SELECT c.name, COUNT(*) as flagCount
+    FROM checklist_items ci
+    JOIN checklist_submissions cs ON ci.submission_id = cs.id
+    JOIN classrooms c ON cs.classroom_id = c.id
+    WHERE cs.submission_date >= ? AND ci.status IN ('not_working','needs_repair')
+    GROUP BY cs.classroom_id
+    ORDER BY flagCount DESC
+    LIMIT 5
+  `).all(cutoffStr);
+
+  // ── 4. Technician activity — submissions count last 7 days ────────────────
+  const techActivity = db.prepare(`
+    SELECT u.full_name, COUNT(*) as subCount
+    FROM checklist_submissions cs
+    JOIN users u ON cs.technician_id = u.id
+    WHERE cs.submission_date >= ?
+    GROUP BY cs.technician_id
+    ORDER BY subCount DESC
+  `).all(cutoffStr);
+
+  res.json({
+    dailyActivity: {
+      labels: dayLabels,
+      checks: checksData,
+      flags: flagsData,
+    },
+    statusMix: {
+      labels: ['Working', 'Needs Repair', 'Not Working'],
+      data: [statusMap.working, statusMap.needs_repair, statusMap.not_working],
+    },
+    topClassrooms: {
+      labels: topClassrooms.map(r => r.name),
+      data: topClassrooms.map(r => r.flagCount),
+    },
+    techActivity: {
+      labels: techActivity.map(r => r.full_name.split(' ')[0]),
+      fullNames: techActivity.map(r => r.full_name),
+      data: techActivity.map(r => r.subCount),
+    },
+  });
+});
+
 
 // GET /api/dashboard/export
 router.get('/export', (req, res) => {
@@ -115,40 +212,69 @@ router.get('/export', (req, res) => {
     sql += ' AND cs.classroom_id = ?';
     params.push(classroom_id);
   }
-  if (technician_id) {
+  // Non-admins can only export their own data
+  const effectiveTechId =
+    req.session.user.role !== 'admin' ? req.session.user.id : (technician_id || null);
+  if (effectiveTechId) {
     sql += ' AND cs.technician_id = ?';
-    params.push(technician_id);
+    params.push(effectiveTechId);
   }
 
   sql += ' ORDER BY cs.submission_date DESC, c.name, e.name';
 
   const rows = db.prepare(sql).all(...params);
 
-  // Build CSV
-  const headers = [
-    'Date', 'Technician', 'Username', 'Classroom', 'Equipment', 'Status', 'Item Notes', 'General Notes',
-  ];
-  const csvRows = [headers.join(',')];
+  const PDFDocument = require('pdfkit');
+  const doc = new PDFDocument({ margin: 30, size: 'A4' });
 
-  for (const row of rows) {
-    const values = [
-      row.submission_date,
-      `"${(row.technician_name || '').replace(/"/g, '""')}"`,
-      row.technician_username,
-      `"${(row.classroom_name || '').replace(/"/g, '""')}"`,
-      `"${(row.equipment_name || '').replace(/"/g, '""')}"`,
-      row.status,
-      `"${(row.item_notes || '').replace(/"/g, '""')}"`,
-      `"${(row.general_notes || '').replace(/"/g, '""')}"`,
-    ];
-    csvRows.push(values.join(','));
+  const filename = `checklist-export-${today}.pdf`;
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+  
+  doc.pipe(res);
+
+  doc.fontSize(20).text('Technician Checklist Export', { align: 'center' });
+  doc.moveDown();
+
+  if (rows.length === 0) {
+    doc.fontSize(12).text('No submissions found for the selected filters.');
+    doc.end();
+    return;
   }
 
-  const csv = csvRows.join('\n');
-  const filename = `checklist-export-${today}.csv`;
-  res.setHeader('Content-Type', 'text/csv');
-  res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-  res.send(csv);
+  let currentSubmissionDate = '';
+  let currentClassroom = '';
+
+  for (const row of rows) {
+    if (row.submission_date !== currentSubmissionDate || row.classroom_name !== currentClassroom) {
+      currentSubmissionDate = row.submission_date;
+      currentClassroom = row.classroom_name;
+      
+      doc.moveDown();
+      doc.fontSize(16).fillColor('#2563eb').text(`${currentClassroom}`, { continued: true });
+      doc.fillColor('#000').text(`  —  ${currentSubmissionDate}`);
+      doc.fontSize(10).fillColor('#6b7280').text(`Technician: ${row.technician_name} (${row.technician_username})`);
+      if (row.general_notes) {
+        doc.fontSize(10).fillColor('#4b5563').text(`General Notes: ${row.general_notes}`);
+      }
+      doc.moveDown(0.5);
+    }
+
+    doc.fontSize(12).fillColor('#000').text(`• ${row.equipment_name}: `, { continued: true });
+    
+    let statusColor = '#dc2626'; // default danger
+    if (row.status === 'working') statusColor = '#16a34a';
+    else if (row.status === 'needs_repair') statusColor = '#d97706';
+    
+    const formattedStatus = row.status.replace('_', ' ').toUpperCase();
+    doc.fillColor(statusColor).text(formattedStatus);
+
+    if (row.item_notes) {
+       doc.fontSize(10).fillColor('#6b7280').text(`    Notes: ${row.item_notes}`);
+    }
+  }
+
+  doc.end();
 });
 
 module.exports = router;

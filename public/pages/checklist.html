@@ -8,14 +8,27 @@
 </head>
 <body>
 
-<nav class="navbar">
-  <a class="navbar-brand" href="/">📋 Checklist App</a>
-  <ul class="navbar-nav" id="navLinks"></ul>
-  <div class="navbar-right">
-    <span class="navbar-user" id="navUser"></span>
-    <button class="btn btn-sm btn-secondary" id="logoutBtn">Logout</button>
-  </div>
-</nav>
+<div class="app-layout">
+  <aside class="sidebar">
+    <a class="sidebar-brand" href="/">
+      <span class="icon">💻</span>
+      <span>Ops Hub</span>
+    </a>
+    <ul class="sidebar-nav" id="navLinks"></ul>
+    <div class="sidebar-footer">
+      <button class="btn btn-block btn-secondary btn-sm" id="logoutBtn">Logout</button>
+    </div>
+  </aside>
+
+  <div class="main-content">
+    <header class="top-header">
+      <div class="top-header-user">
+        <div class="user-profile">
+          <div class="user-avatar" id="navAvatar">U</div>
+          <span id="navUser">User Name</span>
+        </div>
+      </div>
+    </header>
 
 <div class="container">
   <h1 class="page-title">Submit Checklist</h1>
@@ -34,9 +47,6 @@
       <label class="form-label" for="submissionDate">Date</label>
       <input class="form-control" type="date" id="submissionDate" />
     </div>
-    <button class="btn btn-primary mt-3" id="loadChecklistBtn" disabled>
-      Load Checklist
-    </button>
   </div>
 
   <div id="checklistForm" class="hidden">
@@ -67,6 +77,8 @@
   <div id="loadingSpinner" class="hidden">
     <div class="spinner"></div>
   </div>
+</div>
+</div>
 </div>
 
 <script src="/js/checklist.js"></script>

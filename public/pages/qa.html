@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>QA Check List – Technician Checklist</title>
+  <link rel="stylesheet" href="/css/styles.css" />
+  <style>
+    .qa-group { margin-bottom: 25px; padding: 15px; border: 1px solid var(--border); border-radius: var(--border-radius); background: var(--bg-hover); }
+    .qa-group h5 { margin-top: 0; margin-bottom: 15px; color: var(--primary); font-weight: 600; }
+    .table-checks { width: 100%; border-collapse: collapse; }
+    .table-checks td { padding: 10px 5px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+    .table-checks td.toggle-cell { width: 100px; text-align: right; }
+    .switch-label { font-size: 0.95em; color: var(--text-color); cursor: pointer; }
+    
+    /* Custom Toggle Switch */
+    .switch { position: relative; display: inline-block; width: 40px; height: 20px; }
+    .switch input { opacity: 0; width: 0; height: 0; }
+    .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; border-radius: 20px; }
+    .slider:before { position: absolute; content: ""; height: 14px; width: 14px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; }
+    input:checked + .slider { background-color: var(--primary); }
+    input:checked + .slider:before { transform: translateX(20px); }
+  </style>
+</head>
+<body>
+
+<div class="app-layout">
+  <aside class="sidebar">
+    <a class="sidebar-brand" href="/">
+      <span class="icon">💻</span>
+      <span>Ops Hub</span>
+    </a>
+    <ul class="sidebar-nav" id="navLinks"></ul>
+    <div class="sidebar-footer">
+      <button class="btn btn-block btn-secondary btn-sm" id="logoutBtn">Logout</button>
+    </div>
+  </aside>
+
+  <div class="main-content">
+    <header class="top-header">
+      <div class="top-header-user">
+        <div class="user-profile">
+          <div class="user-avatar" id="navAvatar">U</div>
+          <span id="navUser">User Name</span>
+        </div>
+      </div>
+    </header>
+
+<div class="container">
+  <h1 class="page-title">QA Check List</h1>
+
+  <div class="row">
+    <!-- Form Section -->
+    <div class="col-8">
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Setup Configuration</span>
+        </div>
+        
+        <div id="submitSuccess" class="alert alert-success mt-3 hidden"></div>
+        <div id="submitError" class="alert alert-danger mt-3 hidden"></div>
+
+        <form id="qaForm">
+          <div class="row mb-3">
+            <div class="col-4">
+              <div class="form-group">
+                <label class="form-label">Username *</label>
+                <input type="text" class="form-control" id="qaUsername" placeholder="e.g. jdoe" required />
+              </div>
+            </div>
+            <div class="col-4">
+              <div class="form-group">
+                <label class="form-label">Machine Serial #</label>
+                <input type="text" class="form-control" id="qaMachineSerial" placeholder="e.g. 5CG..." />
+              </div>
+            </div>
+            <div class="col-4">
+              <div class="form-group">
+                <label class="form-label">Call Ref #</label>
+                <input type="text" class="form-control" id="qaCallRef" placeholder="e.g. INC12345" />
+              </div>
+            </div>
+          </div>
+
+          <hr class="my-4" style="border-top: 1px solid var(--border);" />
+          
+          <table class="table-checks mb-4">
+            <tbody>
+              <!-- Backup & Restore Data -->
+              <tr>
+                <td><label class="switch-label" for="backup_user_profile">Backup & Restore: User Profile</label></td>
+                <td class="toggle-cell"><label class="switch"><input type="checkbox" id="backup_user_profile"><span class="slider"></span></label></td>
+              </tr>
+              <tr>
+                <td><label class="switch-label" for="backup_internet_favorites">Backup & Restore: Internet Favorites</label></td>
+                <td class="toggle-cell"><label class="switch"><input type="checkbox" id="backup_internet_favorites"><span class="slider"></span></label></td>
+              </tr>
+              <tr>
+                <td><label class="switch-label" for="backup_outlook_cache">Backup & Restore: Outlook Email Cache Working</label></td>
+                <td class="toggle-cell"><label class="switch"><input type="checkbox" id="backup_outlook_cache"><span class="slider"></span></label></td>
+              </tr>
+              
+              <!-- System Config -->
+              <tr>
+                <td><label class="switch-label" for="join_domain">Join computer to GIBS domain</label></td>
+                <td class="toggle-cell"><label class="switch"><input type="checkbox" id="join_domain"><span class="slider"></span></label></td>
+              </tr>
+              <tr>
+                <td><label class="switch-label" for="windows_updates">Latest Windows updates installed</label></td>
+                <td class="toggle-cell"><label class="switch"><input type="checkbox" id="windows_updates"><span class="slider"></span></label></td>
+              </tr>
+              <tr>
+                <td><label class="switch-label" for="drivers_3g">Drivers for internal 3G installed and tested ("Not automatically connect")</label></td>
+                <td class="toggle-cell"><label class="switch"><input type="checkbox" id="drivers_3g"><span class="slider"></span></label></td>
+              </tr>
+              <tr>
+                <td><label class="switch-label" for="windows_defender">Windows Defender installed and healthy</label></td>
+                <td class="toggle-cell"><label class="switch"><input type="checkbox" id="windows_defender"><span class="slider"></span></label></td>
+              </tr>
+              <tr>
+                <td><label class="switch-label" for="mimecast_mso">Latest Mimecast MSO installed</label></td>
+                <td class="toggle-cell"><label class="switch"><input type="checkbox" id="mimecast_mso"><span class="slider"></span></label></td>
+              </tr>
+              <tr>
+                <td><label class="switch-label" for="bios_updated">BIOS updated with latest version</label></td>
+                <td class="toggle-cell"><label class="switch"><input type="checkbox" id="bios_updated"><span class="slider"></span></label></td>
+              </tr>
+              <tr>
+                <td><label class="switch-label" for="vpn_setup">VPN connection setup and tested</label></td>
+                <td class="toggle-cell"><label class="switch"><input type="checkbox" id="vpn_setup"><span class="slider"></span></label></td>
+              </tr>
+              <tr>
+                <td><label class="switch-label" for="remove_local_admin">Local Administrator permissions removed for user</label></td>
+                <td class="toggle-cell"><label class="switch"><input type="checkbox" id="remove_local_admin"><span class="slider"></span></label></td>
+              </tr>
+              
+              <!-- Network & Profiles -->
+              <tr>
+                <td><label class="switch-label" for="onedrive_home_dir">User "Home" directory created on OneDrive</label></td>
+                <td class="toggle-cell"><label class="switch"><input type="checkbox" id="onedrive_home_dir"><span class="slider"></span></label></td>
+              </tr>
+              <tr>
+                <td><label class="switch-label" for="mapped_drive">Mapped departmental drive</label></td>
+                <td class="toggle-cell"><label class="switch"><input type="checkbox" id="mapped_drive"><span class="slider"></span></label></td>
+              </tr>
+              <tr>
+                <td><label class="switch-label" for="onedrive_default_save">Set default "Save" location to user OneDrive for Office</label></td>
+                <td class="toggle-cell"><label class="switch"><input type="checkbox" id="onedrive_default_save"><span class="slider"></span></label></td>
+              </tr>
+              <tr>
+                <td><label class="switch-label" for="nic_power_management">Power Management for NIC disabled</label></td>
+                <td class="toggle-cell"><label class="switch"><input type="checkbox" id="nic_power_management"><span class="slider"></span></label></td>
+              </tr>
+              <tr>
+                <td><label class="switch-label" for="staff_distribution_list">User added to GIBS Staff Distribution list</label></td>
+                <td class="toggle-cell"><label class="switch"><input type="checkbox" id="staff_distribution_list"><span class="slider"></span></label></td>
+              </tr>
+              <tr>
+                <td><label class="switch-label" for="intranet_homepage">Configure GIBS Intranet as "Homepage"</label></td>
+                <td class="toggle-cell"><label class="switch"><input type="checkbox" id="intranet_homepage"><span class="slider"></span></label></td>
+              </tr>
+              <tr>
+                <td><label class="switch-label" for="direct_shortcut">Created GIBS Direct shortcut on Desktop</label></td>
+                <td class="toggle-cell"><label class="switch"><input type="checkbox" id="direct_shortcut"><span class="slider"></span></label></td>
+              </tr>
+              <tr>
+                <td><label class="switch-label" for="rendezvous_shortcut">Created Rendezvous shortcut on Desktop if required</label></td>
+                <td class="toggle-cell"><label class="switch"><input type="checkbox" id="rendezvous_shortcut"><span class="slider"></span></label></td>
+              </tr>
+              
+              <!-- Licenses & Hardware -->
+              <tr>
+                <td><label class="switch-label" for="windows_activated">Windows activated</label></td>
+                <td class="toggle-cell"><label class="switch"><input type="checkbox" id="windows_activated"><span class="slider"></span></label></td>
+              </tr>
+              <tr>
+                <td><label class="switch-label" for="office_activated">Microsoft Office activated</label></td>
+                <td class="toggle-cell"><label class="switch"><input type="checkbox" id="office_activated"><span class="slider"></span></label></td>
+              </tr>
+              <tr>
+                <td><label class="switch-label" for="private_wifi">GIBS Private Wifi setup and set to automatically connect</label></td>
+                <td class="toggle-cell"><label class="switch"><input type="checkbox" id="private_wifi"><span class="slider"></span></label></td>
+              </tr>
+              <tr>
+                <td><label class="switch-label" for="accpac_installed">Accpac installed if required</label></td>
+                <td class="toggle-cell"><label class="switch"><input type="checkbox" id="accpac_installed"><span class="slider"></span></label></td>
+              </tr>
+              <tr>
+                <td><label class="switch-label" for="test_vga">Test ext. VGA port on laptop with LCD monitor</label></td>
+                <td class="toggle-cell"><label class="switch"><input type="checkbox" id="test_vga"><span class="slider"></span></label></td>
+              </tr>
+              <tr>
+                <td><label class="switch-label" for="test_usb">Test all USB ports and working</label></td>
+                <td class="toggle-cell"><label class="switch"><input type="checkbox" id="test_usb"><span class="slider"></span></label></td>
+              </tr>
+              <tr>
+                <td><label class="switch-label" for="klite_codec">Install latest K-Lite codec pack</label></td>
+                <td class="toggle-cell"><label class="switch"><input type="checkbox" id="klite_codec"><span class="slider"></span></label></td>
+              </tr>
+              <tr>
+                <td><label class="switch-label" for="regional_settings">Regional settings set for South Africa (YYYY/MM/DD)</label></td>
+                <td class="toggle-cell"><label class="switch"><input type="checkbox" id="regional_settings"><span class="slider"></span></label></td>
+              </tr>
+              <tr>
+                <td><label class="switch-label" for="register_office_credentials">Register user credentials when opening office 1st time</label></td>
+                <td class="toggle-cell"><label class="switch"><input type="checkbox" id="register_office_credentials"><span class="slider"></span></label></td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div class="row">
+            <div class="col-6">
+              <div class="form-group mb-3">
+                <label class="form-label">List all printers installed</label>
+                <textarea class="form-control" id="printers" rows="3" placeholder="e.g. FollowMe Printer"></textarea>
+              </div>
+            </div>
+            <div class="col-6">
+              <div class="form-group mb-3">
+                <label class="form-label">List any other licensed software installed</label>
+                <textarea class="form-control" id="otherSoftware" rows="3" placeholder="e.g. Adobe Acrobat Pro"></textarea>
+              </div>
+            </div>
+          </div>
+
+          <button type="button" class="btn btn-primary btn-block mt-4" id="submitBtn">Submit QA Checklist</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- History Section -->
+    <div class="col-4">
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Recent QA Submissions</span>
+        </div>
+        <div id="historyList">
+           <div class="spinner"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</div>
+</div>
+
+<script src="/js/qa.js"></script>
+</body>
+</html>

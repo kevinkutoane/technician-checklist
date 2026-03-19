@@ -39,14 +39,19 @@ async function initNav() {
   }
 
   document.getElementById('navUser').textContent = currentUser.full_name;
+  const avatarEl = document.getElementById('navAvatar');
+  if (avatarEl) avatarEl.textContent = currentUser.full_name[0].toUpperCase();
 
   const navLinks = document.getElementById('navLinks');
-  const links = [
-    `<li><a href="/checklist">Checklist</a></li>`,
-    `<li><a href="/dashboard" class="active">Dashboard</a></li>`,
-  ];
+  const links = [];
+  if (currentUser.role === 'technician') {
+    links.push(`<li><a href="/checklist"><span class="icon">✅</span> Checklist</a></li>`);
+    links.push(`<li><a href="/onboarding"><span class="icon">💻</span> Asset Agreement</a></li>`);
+    links.push(`<li><a href="/qa"><span class="icon">🔍</span> QA Checklist</a></li>`);
+  }
+  links.push(`<li><a href="/dashboard" class="active"><span class="icon">📊</span> Dashboard</a></li>`);
   if (currentUser.role === 'admin') {
-    links.push(`<li><a href="/admin">Admin</a></li>`);
+    links.push(`<li><a href="/admin"><span class="icon">⚙️</span> Admin</a></li>`);
   }
   navLinks.innerHTML = links.join('');
 
@@ -55,9 +60,11 @@ async function initNav() {
     window.location.href = '/';
   });
 
-  // Hide tech filter for non-admins
-  if (currentUser.role !== 'admin') {
+  if (currentUser.role === 'admin') {
+    document.getElementById('adminCharts').classList.remove('hidden');
+  } else {
     document.getElementById('techFilterGroup').classList.add('hidden');
+    document.getElementById('techQuickActions').classList.remove('hidden');
   }
 }
 
@@ -66,9 +73,17 @@ async function loadStats() {
   try {
     const s = await apiFetch('/api/dashboard/summary');
     document.getElementById('statSubmissions').textContent = s.totalSubmissions;
+    document.getElementById('statAssetAgreements').textContent = s.totalAssetAgreements || 0;
+    document.getElementById('statQAChecklists').textContent = s.totalQAChecklists || 0;
     document.getElementById('statFlagged').textContent = s.flaggedItems;
     document.getElementById('statNotWorking').textContent = s.notWorkingItems;
     document.getElementById('statClassrooms').textContent = s.totalClassrooms;
+    const techCard = document.getElementById('statTechnicianCard');
+    if (currentUser && currentUser.role === 'admin') {
+      document.getElementById('statTechnicians').textContent = s.totalTechnicians;
+    } else if (techCard) {
+      techCard.style.display = 'none';
+    }
   } catch (err) {
     console.error('Stats error:', err);
   }
@@ -168,6 +183,180 @@ async function loadSubmissions() {
   }
 }
 
+// ─── Recent Asset Agreements & QA Checklists ────────────────────────────────
+async function loadAssetAgreements() {
+  const el = document.getElementById('assetAgreementsContainer');
+  el.innerHTML = '<div class="spinner"></div>';
+  try {
+    const list = await apiFetch('/api/onboarding?limit=10');
+    if (!list.length) {
+      el.innerHTML = '<div class="empty-state"><p>No recent agreements.</p></div>';
+      return;
+    }
+    el.innerHTML = list.map(item => `
+      <div style="padding: 10px; border-bottom: 1px solid var(--border);">
+        <strong>${esc(item.employee_name)}</strong> 
+        <br/><small style="color: var(--text-muted);">SN: ${esc(item.laptop_serial_number || 'N/A')}</small>
+        <br/><small style="color: var(--text-muted);">Issued by ${esc(item.technician_name)} on ${item.submission_date}</small>
+      </div>
+    `).join('');
+  } catch (err) {
+    el.innerHTML = `<div class="alert alert-danger">${err.message}</div>`;
+  }
+}
+
+async function loadQAChecklists() {
+  const el = document.getElementById('qaChecklistsContainer');
+  el.innerHTML = '<div class="spinner"></div>';
+  try {
+    const list = await apiFetch('/api/qa?limit=10');
+    if (!list.length) {
+      el.innerHTML = '<div class="empty-state"><p>No recent QA lists.</p></div>';
+      return;
+    }
+    el.innerHTML = list.map(item => `
+      <div style="padding: 10px; border-bottom: 1px solid var(--border);">
+        <strong>${esc(item.username)}</strong> 
+        <br/><small style="color: var(--text-muted);">SN: ${esc(item.machine_serial || 'N/A')} | Ref: ${esc(item.call_ref || 'N/A')}</small>
+        <br/><small style="color: var(--text-muted);">QAed by ${esc(item.technician_name)} on ${item.submission_date}</small>
+      </div>
+    `).join('');
+  } catch (err) {
+    el.innerHTML = `<div class="alert alert-danger">${err.message}</div>`;
+  }
+}
+
+// ─── Admin Charts ─────────────────────────────────────────────────────────────
+let dailyChartInst, statusChartInst, classroomsChartInst, techChartInst;
+
+async function loadAdminCharts() {
+  const chartSection = document.getElementById('adminCharts');
+  // Only show for admins
+  if (!currentUser || currentUser.role !== 'admin') {
+    if (chartSection) chartSection.classList.add('hidden');
+    return;
+  }
+  if (chartSection) chartSection.classList.remove('hidden');
+
+  try {
+    const data = await apiFetch('/api/dashboard/charts');
+    
+    // 1. Daily Operational Pulse (Checks vs Flags)
+    const ctxDaily = document.getElementById('dailyActivityChart').getContext('2d');
+    if (dailyChartInst) dailyChartInst.destroy();
+    dailyChartInst = new Chart(ctxDaily, {
+      type: 'bar',
+      data: {
+        labels: data.dailyActivity.labels,
+        datasets: [
+          {
+            label: 'Classroom Checks',
+            data: data.dailyActivity.checks,
+            backgroundColor: 'rgba(79, 70, 229, 0.8)',
+            borderRadius: 4
+          },
+          {
+            label: 'Flagged Issues',
+            data: data.dailyActivity.flags,
+            type: 'line',
+            borderColor: '#f59e0b',
+            backgroundColor: 'transparent',
+            tension: 0.4,
+            borderWidth: 3,
+            pointBackgroundColor: '#f59e0b'
+          }
+        ]
+      },
+      options: { 
+        responsive: true, 
+        maintainAspectRatio: false,
+        scales: {
+          y: { beginAtZero: true, grid: { display: false } }
+        }
+      }
+    });
+
+    // 2. Equipment Health Mix
+    const ctxStatus = document.getElementById('statusMixChart').getContext('2d');
+    if (statusChartInst) statusChartInst.destroy();
+    statusChartInst = new Chart(ctxStatus, {
+      type: 'doughnut',
+      data: {
+        labels: data.statusMix.labels,
+        datasets: [{
+          data: data.statusMix.data,
+          backgroundColor: ['#10b981', '#f59e0b', '#ef4444'],
+          borderWidth: 0
+        }]
+      },
+      options: { 
+        responsive: true, 
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'bottom' }
+        }
+      }
+    });
+
+    // 3. High-Maintenance Classrooms (Top 5)
+    const ctxRooms = document.getElementById('topClassroomsChart').getContext('2d');
+    if (classroomsChartInst) classroomsChartInst.destroy();
+    classroomsChartInst = new Chart(ctxRooms, {
+      type: 'bar',
+      data: {
+        labels: data.topClassrooms.labels,
+        datasets: [{
+          label: 'Total Flags',
+          data: data.topClassrooms.data,
+          backgroundColor: 'rgba(239, 68, 68, 0.7)',
+          borderRadius: 4
+        }]
+      },
+      options: { 
+        indexAxis: 'y',
+        responsive: true, 
+        maintainAspectRatio: false,
+        scales: {
+          x: { beginAtZero: true, grid: { display: false } }
+        }
+      }
+    });
+
+    // 4. Technician Performance
+    const ctxTech = document.getElementById('techActivityChart').getContext('2d');
+    if (techChartInst) techChartInst.destroy();
+    techChartInst = new Chart(ctxTech, {
+      type: 'bar',
+      data: {
+        labels: data.techActivity.labels,
+        datasets: [{
+          label: 'Submissions',
+          data: data.techActivity.data,
+          backgroundColor: 'rgba(16, 185, 129, 0.7)',
+          borderRadius: 4
+        }]
+      },
+      options: { 
+        responsive: true, 
+        maintainAspectRatio: false,
+        scales: {
+          y: { beginAtZero: true }
+        },
+        plugins: {
+          tooltip: {
+            callbacks: {
+              title: (items) => data.techActivity.fullNames[items[0].dataIndex]
+            }
+          }
+        }
+      }
+    });
+  } catch (err) {
+    console.error('Charts error:', err);
+  }
+}
+
+
 // ─── Detail Modal ─────────────────────────────────────────────────────────────
 window.viewDetail = async function (id) {
   try {
@@ -221,7 +410,12 @@ document.getElementById('exportBtn').addEventListener('click', () => {
   if (sd) params.set('start_date', sd);
   if (ed) params.set('end_date', ed);
   if (cr) params.set('classroom_id', cr);
-  if (te) params.set('technician_id', te);
+  // Non-admins can only export their own data
+  if (currentUser && currentUser.role !== 'admin') {
+    params.set('technician_id', currentUser.id);
+  } else if (te) {
+    params.set('technician_id', te);
+  }
   window.location.href = `/api/dashboard/export?${params}`;
 });
 
@@ -250,6 +444,8 @@ async function populateFilterSelects() {
 // ─── Events ────────────────────────────────────────────────────────────────────
 document.getElementById('applyFiltersBtn').addEventListener('click', async () => {
   await loadSubmissions();
+  await loadAssetAgreements();
+  await loadQAChecklists();
   const sd = document.getElementById('filterStartDate').value;
   if (sd) await loadIssues(sd);
 });
@@ -265,6 +461,9 @@ document.getElementById('applyFiltersBtn').addEventListener('click', async () =>
     loadStats(),
     loadIssues(),
     loadSubmissions(),
+    loadAssetAgreements(),
+    loadQAChecklists(),
+    loadAdminCharts(),
     populateFilterSelects(),
   ]);
 })();

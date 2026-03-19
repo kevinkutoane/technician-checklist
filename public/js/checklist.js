@@ -31,14 +31,19 @@ async function initNav() {
   }
 
   document.getElementById('navUser').textContent = currentUser.full_name;
+  const avatarEl = document.getElementById('navAvatar');
+  if (avatarEl) avatarEl.textContent = currentUser.full_name[0].toUpperCase();
 
   const navLinks = document.getElementById('navLinks');
-  const links = [
-    `<li><a href="/checklist" class="active">Checklist</a></li>`,
-    `<li><a href="/dashboard">Dashboard</a></li>`,
-  ];
+  const links = [];
+  if (currentUser.role === 'technician') {
+    links.push(`<li><a href="/checklist" class="active"><span class="icon">✅</span> Checklist</a></li>`);
+    links.push(`<li><a href="/onboarding"><span class="icon">💻</span> Asset Agreement</a></li>`);
+    links.push(`<li><a href="/qa"><span class="icon">🔍</span> QA Checklist</a></li>`);
+  }
+  links.push(`<li><a href="/dashboard"><span class="icon">📊</span> Dashboard</a></li>`);
   if (currentUser.role === 'admin') {
-    links.push(`<li><a href="/admin">Admin</a></li>`);
+    links.push(`<li><a href="/admin"><span class="icon">⚙️</span> Admin</a></li>`);
   }
   navLinks.innerHTML = links.join('');
 
@@ -63,19 +68,17 @@ async function loadClassrooms() {
 // ─── Controls ────────────────────────────────────────────────────────────────
 const classroomSelect = document.getElementById('classroomSelect');
 const submissionDateInput = document.getElementById('submissionDate');
-const loadBtn = document.getElementById('loadChecklistBtn');
 const checklistForm = document.getElementById('checklistForm');
 
 // Set today's date
 submissionDateInput.value = new Date().toISOString().slice(0, 10);
 
-classroomSelect.addEventListener('change', () => {
-  loadBtn.disabled = !classroomSelect.value;
-});
-
-loadBtn.addEventListener('click', async () => {
+async function loadChecklistData() {
   const classroomId = classroomSelect.value;
-  if (!classroomId) return;
+  if (!classroomId) {
+    checklistForm.classList.add('hidden');
+    return;
+  }
 
   document.getElementById('loadingSpinner').classList.remove('hidden');
   checklistForm.classList.add('hidden');
@@ -113,7 +116,10 @@ loadBtn.addEventListener('click', async () => {
   } finally {
     document.getElementById('loadingSpinner').classList.add('hidden');
   }
-});
+}
+
+classroomSelect.addEventListener('change', loadChecklistData);
+submissionDateInput.addEventListener('change', loadChecklistData);
 
 function renderEquipmentList(equipment) {
   const container = document.getElementById('equipmentList');
@@ -212,7 +218,6 @@ document.getElementById('submitBtn').addEventListener('click', async () => {
     checklistForm.classList.add('hidden');
     // Reset form
     classroomSelect.value = '';
-    loadBtn.disabled = true;
   } catch (err) {
     errEl.textContent = `Error: ${err.message}`;
     errEl.classList.remove('hidden');

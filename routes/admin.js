@@ -145,6 +145,42 @@ router.post('/technicians', requireAdmin, async (req, res) => {
   }
 });
 
+// PUT /api/technicians/:id
+router.put('/technicians/:id', requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  const { username, password, full_name } = req.body;
+  if (!username || !username.trim() || !full_name || !full_name.trim()) {
+    return res.status(400).json({ error: 'username and full_name are required' });
+  }
+
+  try {
+    let stmt;
+    if (password && password.trim() !== '') {
+      const hash = await bcrypt.hash(password, 10);
+      stmt = db.prepare('UPDATE users SET username = ?, full_name = ?, password = ? WHERE id = ? AND role = \'technician\'');
+      stmt.run(username.trim(), full_name.trim(), hash, id);
+    } else {
+      stmt = db.prepare('UPDATE users SET username = ?, full_name = ? WHERE id = ? AND role = \'technician\'');
+      stmt.run(username.trim(), full_name.trim(), id);
+    }
+
+    const user = db
+      .prepare('SELECT id, username, full_name, role, created_at FROM users WHERE id = ?')
+      .get(id);
+    
+    if (!user) {
+       return res.status(404).json({ error: 'Technician not found' });
+    }
+    
+    res.json(user);
+  } catch (err) {
+    if (err.message && err.message.includes('UNIQUE constraint failed')) {
+      return res.status(400).json({ error: 'Username already exists' });
+    }
+    res.status(500).json({ error: 'Failed to update technician' });
+  }
+});
+
 // DELETE /api/technicians/:id
 router.delete('/technicians/:id', requireAdmin, (req, res) => {
   const { id } = req.params;

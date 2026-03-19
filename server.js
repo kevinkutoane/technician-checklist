@@ -3,16 +3,24 @@
 const express = require('express');
 const session = require('express-session');
 const rateLimit = require('express-rate-limit');
+const helmet = require('helmet');
 const path = require('path');
 
 const authRoutes = require('./routes/auth');
 const adminRoutes = require('./routes/admin');
 const checklistRoutes = require('./routes/checklist');
 const dashboardRoutes = require('./routes/dashboard');
+const onboardingRoutes = require('./routes/onboarding');
+const qaRoutes = require('./routes/qa');
 const { requireAuth, requireAdmin } = require('./middleware/auth');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// Security Headers
+app.use(helmet({
+  contentSecurityPolicy: false, // Ensure inline styles/scripts or dynamically loaded fonts still work if needed
+}));
 
 // Body parsing
 app.use(express.json());
@@ -96,6 +104,14 @@ app.get('/checklist', pageLimiter, requireAuth, (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'pages', 'checklist.html'));
 });
 
+app.get('/onboarding', pageLimiter, requireAuth, (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'pages', 'onboarding.html'));
+});
+
+app.get('/qa', pageLimiter, requireAuth, (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'pages', 'qa.html'));
+});
+
 app.get('/dashboard', pageLimiter, requireAuth, (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'pages', 'dashboard.html'));
 });
@@ -110,6 +126,8 @@ app.use('/api/auth', authLimiter, authRoutes);
 app.use('/api', apiLimiter, adminRoutes);          // classrooms, equipment, technicians under /api
 app.use('/api/checklists', apiLimiter, checklistRoutes);
 app.use('/api/dashboard', apiLimiter, dashboardRoutes);
+app.use('/api/onboarding', apiLimiter, onboardingRoutes);
+app.use('/api/qa', apiLimiter, qaRoutes);
 
 // 404 handler
 app.use((req, res) => {

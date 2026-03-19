@@ -28,13 +28,21 @@ async function initNav() {
   }
 
   document.getElementById('navUser').textContent = currentUser.full_name;
+  const avatarEl = document.getElementById('navAvatar');
+  if (avatarEl) avatarEl.textContent = currentUser.full_name[0].toUpperCase();
 
   const navLinks = document.getElementById('navLinks');
-  navLinks.innerHTML = `
-    <li><a href="/checklist">Checklist</a></li>
-    <li><a href="/dashboard">Dashboard</a></li>
-    <li><a href="/admin" class="active">Admin</a></li>
-  `;
+  const links = [];
+  if (currentUser.role === 'technician') {
+    links.push(`<li><a href="/checklist"><span class="icon">✅</span> Checklist</a></li>`);
+    links.push(`<li><a href="/onboarding"><span class="icon">💻</span> Asset Agreement</a></li>`);
+    links.push(`<li><a href="/qa"><span class="icon">🔍</span> QA Checklist</a></li>`);
+  }
+  links.push(`<li><a href="/dashboard"><span class="icon">📊</span> Dashboard</a></li>`);
+  if (currentUser.role === 'admin') {
+    links.push(`<li><a href="/admin" class="active"><span class="icon">⚙️</span> Admin</a></li>`);
+  }
+  navLinks.innerHTML = links.join('');
 
   document.getElementById('logoutBtn').addEventListener('click', async () => {
     await fetch('/api/auth/logout', { method: 'POST' });
@@ -116,8 +124,15 @@ function populateClassroomSelects() {
     const sel = document.getElementById(selId);
     if (!sel) return;
     const prev = sel.value;
-    const isFilter = selId !== 'equipmentClassroom';
-    sel.innerHTML = (isFilter ? '<option value="">All</option>' : '') +
+    let defaultOption;
+    if (selId === 'equipClassroomFilter') {
+      defaultOption = '<option value="">-- Select a classroom --</option>';
+    } else if (selId === 'equipmentClassroom') {
+      defaultOption = '';
+    } else {
+      defaultOption = '<option value="">All</option>';
+    }
+    sel.innerHTML = defaultOption +
       classrooms.map((c) => `<option value="${c.id}">${esc(c.name)}</option>`).join('');
     if (prev) sel.value = prev;
   });
@@ -318,6 +333,7 @@ function renderTechnicians() {
               <td><code>${esc(t.username)}</code></td>
               <td>${new Date(t.created_at).toLocaleDateString()}</td>
               <td>
+                <button class="btn btn-secondary btn-sm" onclick="editTechnician(${t.id})">Edit</button>
                 <button class="btn btn-danger btn-sm" onclick="deleteTechnician(${t.id}, '${esc(t.full_name)}')">Remove</button>
               </td>
             </tr>
@@ -329,7 +345,7 @@ function renderTechnicians() {
 }
 
 function populateTechFilter() {
-  ['subTechFilter'].forEach((selId) => {
+  ['subTechFilter', 'qaTechFilter', 'onboardingTechFilter'].forEach((selId) => {
     const sel = document.getElementById(selId);
     if (!sel) return;
     const prev = sel.value;
@@ -340,12 +356,30 @@ function populateTechFilter() {
 }
 
 document.getElementById('addTechnicianBtn').addEventListener('click', () => {
+  document.getElementById('techId').value = '';
+  document.getElementById('technicianModalTitle').textContent = 'Add Technician';
   document.getElementById('techFullName').value = '';
   document.getElementById('techUsername').value = '';
   document.getElementById('techPassword').value = '';
+  document.getElementById('techPassword').placeholder = 'Min 6 characters';
+  document.getElementById('saveTechnicianBtn').textContent = 'Add Technician';
   document.getElementById('technicianModalError').classList.add('hidden');
   openModal('technicianModal');
 });
+
+window.editTechnician = function (id) {
+  const t = technicians.find((x) => x.id === id);
+  if (!t) return;
+  document.getElementById('techId').value = t.id;
+  document.getElementById('technicianModalTitle').textContent = 'Edit Technician';
+  document.getElementById('techFullName').value = t.full_name;
+  document.getElementById('techUsername').value = t.username;
+  document.getElementById('techPassword').value = '';
+  document.getElementById('techPassword').placeholder = 'Leave blank to keep current password';
+  document.getElementById('saveTechnicianBtn').textContent = 'Save Changes';
+  document.getElementById('technicianModalError').classList.add('hidden');
+  openModal('technicianModal');
+};
 
 window.deleteTechnician = async function (id, name) {
   if (!confirm(`Remove technician "${name}"?`)) return;
@@ -358,20 +392,32 @@ window.deleteTechnician = async function (id, name) {
 };
 
 document.getElementById('saveTechnicianBtn').addEventListener('click', async () => {
+  const id = document.getElementById('techId').value;
   const full_name = document.getElementById('techFullName').value.trim();
   const username = document.getElementById('techUsername').value.trim();
   const password = document.getElementById('techPassword').value;
   const errEl = document.getElementById('technicianModalError');
 
-  if (!full_name || !username || !password) {
-    errEl.textContent = 'All fields are required';
+  if (!full_name || !username) {
+    errEl.textContent = 'Name and username are required';
     errEl.classList.remove('hidden');
     return;
   }
+  
+  if (!id && !password) {
+     errEl.textContent = 'Password is required when creating a new technician';
+     errEl.classList.remove('hidden');
+     return;
+  }
+  
   errEl.classList.add('hidden');
 
   try {
-    await apiFetch('/api/technicians', { method: 'POST', body: JSON.stringify({ full_name, username, password }) });
+    if (id) {
+      await apiFetch(`/api/technicians/${id}`, { method: 'PUT', body: JSON.stringify({ full_name, username, password }) });
+    } else {
+      await apiFetch('/api/technicians', { method: 'POST', body: JSON.stringify({ full_name, username, password }) });
+    }
     closeModal('technicianModal');
     await loadTechnicians();
   } catch (err) {
@@ -414,7 +460,7 @@ async function loadSubmissions() {
                 <td>${esc(s.classroom_name)}</td>
                 <td>${esc(s.technician_name)}</td>
                 <td>${new Date(s.created_at).toLocaleString()}</td>
-                <td><a href="/dashboard" class="btn btn-secondary btn-sm" onclick="viewSubmission(${s.id}); return false;">View</a></td>
+                <td><button class="btn btn-secondary btn-sm" onclick="viewDetail(${s.id})">View</button></td>
               </tr>
             `).join('')}
           </tbody>
@@ -426,6 +472,49 @@ async function loadSubmissions() {
   }
 }
 
+// ─── View Detail Modal (shared with dashboard) ────────────────────────────────
+window.viewDetail = async function (id) {
+  try {
+    const sub = await apiFetch(`/api/checklists/${id}`);
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay open';
+    overlay.innerHTML = `
+      <div class="modal" style="max-width:600px">
+        <h3 class="modal-title">
+          ${esc(sub.classroom_name)} — ${sub.submission_date}
+        </h3>
+        <p style="color:var(--gray-500);font-size:0.875rem;margin-bottom:1rem">
+          Submitted by ${esc(sub.technician_name)} at ${new Date(sub.created_at).toLocaleString()}
+        </p>
+        ${sub.general_notes ? `<p class="mb-2"><strong>Notes:</strong> ${esc(sub.general_notes)}</p>` : ''}
+        <div class="table-wrapper">
+          <table>
+            <thead><tr><th>Equipment</th><th>Status</th><th>Notes</th></tr></thead>
+            <tbody>
+              ${sub.items.map((item) => `
+                <tr>
+                  <td>${esc(item.equipment_name)}</td>
+                  <td>${statusBadge(item.status)}</td>
+                  <td>${esc(item.notes || '—')}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" onclick="this.closest('.modal-overlay').remove()">Close</button>
+        </div>
+      </div>
+    `;
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) overlay.remove();
+    });
+    document.body.appendChild(overlay);
+  } catch (err) {
+    alert(`Error: ${err.message}`);
+  }
+};
+
 // ─── Utility ────────────────────────────────────────────────────────────────
 function esc(str) {
   return String(str || '')
@@ -434,6 +523,110 @@ function esc(str) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
+}
+
+// ─── QA Submissions (Admin) ──────────────────────────────────────────────────
+document.getElementById('loadQABtn').addEventListener('click', loadQASubmissions);
+
+async function loadQASubmissions() {
+  const el = document.getElementById('qaList');
+  el.innerHTML = '<div class="spinner"></div>';
+  const sd = document.getElementById('qaStartDate').value;
+  const ed = document.getElementById('qaEndDate').value;
+  const te = document.getElementById('qaTechFilter').value;
+  try {
+    let list = await apiFetch('/api/qa?limit=500');
+    if (sd) list = list.filter(i => i.submission_date >= sd);
+    if (ed) list = list.filter(i => i.submission_date <= ed);
+    if (te) list = list.filter(i => String(i.technician_id) === te);
+    if (!list.length) {
+      el.innerHTML = '<div class="empty-state"><div class="empty-icon">🔍</div><p>No QA submissions found</p></div>';
+      return;
+    }
+    const boolFields = ['backup_user_profile','backup_internet_favorites','backup_outlook_cache','join_domain','windows_updates','drivers_3g','windows_defender','mimecast_mso','bios_updated','vpn_setup','remove_local_admin','onedrive_home_dir','mapped_drive','onedrive_default_save','nic_power_management','staff_distribution_list','intranet_homepage','direct_shortcut','rendezvous_shortcut','windows_activated','office_activated','private_wifi','accpac_installed','test_vga','test_usb','klite_codec','regional_settings','register_office_credentials'];
+    
+    // Helper to make field names readable
+    const formatLabel = (s) => s.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+
+    el.innerHTML = `
+      <div class="table-wrapper">
+        <table>
+          <thead><tr><th>Date</th><th>Technician</th><th>User</th><th>Machine SN</th><th>Call Ref</th><th>Checks Passed</th><th>Printers</th><th>Other SW</th></tr></thead>
+          <tbody>
+            ${list.map(q => {
+              const passedItems = boolFields.filter(f => q[f]);
+              const passedCount = passedItems.length;
+              const passedList = passedItems.map(f => formatLabel(f)).join('\n');
+
+              return `<tr>
+                <td>${q.submission_date}</td>
+                <td>${esc(q.technician_name)}</td>
+                <td>${esc(q.username)}</td>
+                <td>${esc(q.machine_serial || '—')}</td>
+                <td>${esc(q.call_ref || '—')}</td>
+                <td title="${esc(passedList)}">
+                  <div style="display:flex; align-items:center; gap:4px; cursor:help;">
+                    <strong>${passedCount}/${boolFields.length}</strong>
+                    <span style="font-size:12px; opacity:0.6;">ⓘ</span>
+                  </div>
+                </td>
+                <td>${esc(q.printers_installed || '—')}</td>
+                <td>${esc(q.other_software || '—')}</td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>
+    `;
+  } catch (err) {
+    el.innerHTML = `<div class="alert alert-danger">${err.message}</div>`;
+  }
+}
+
+// ─── Asset Agreements (Admin) ────────────────────────────────────────────────
+document.getElementById('loadOnboardingBtn').addEventListener('click', loadOnboardingSubmissions);
+
+async function loadOnboardingSubmissions() {
+  const el = document.getElementById('onboardingList');
+  el.innerHTML = '<div class="spinner"></div>';
+  const sd = document.getElementById('onboardingStartDate').value;
+  const ed = document.getElementById('onboardingEndDate').value;
+  const te = document.getElementById('onboardingTechFilter').value;
+  try {
+    let list = await apiFetch('/api/onboarding?limit=500');
+    if (sd) list = list.filter(i => i.submission_date >= sd);
+    if (ed) list = list.filter(i => i.submission_date <= ed);
+    if (te) list = list.filter(i => String(i.technician_id) === te);
+    if (!list.length) {
+      el.innerHTML = '<div class="empty-state"><div class="empty-icon">💻</div><p>No asset agreements found</p></div>';
+      return;
+    }
+    el.innerHTML = `
+      <div class="table-wrapper">
+        <table>
+          <thead><tr><th>Date</th><th>Issued By</th><th>Employee</th><th>Laptop SN</th><th>SIM</th><th>Equipment Issued</th></tr></thead>
+          <tbody>
+            ${list.map(a => {
+              const issued = ['dongle','laptop_charger','laptop_bag','mouse','monitor','keyboard']
+                .filter(f => a[f])
+                .map(f => f.replace(/_/g, ' '))
+                .join(', ');
+              return `<tr>
+                <td>${a.submission_date}</td>
+                <td>${esc(a.technician_name)}</td>
+                <td><strong>${esc(a.employee_name)}</strong></td>
+                <td>${esc(a.laptop_serial_number || '—')}</td>
+                <td>${esc(a.sim_card_number || '—')}</td>
+                <td>${esc(issued || '—')}</td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>
+    `;
+  } catch (err) {
+    el.innerHTML = `<div class="alert alert-danger">${err.message}</div>`;
+  }
 }
 
 // ─── Init ────────────────────────────────────────────────────────────────────

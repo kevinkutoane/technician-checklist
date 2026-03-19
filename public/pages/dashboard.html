@@ -1,99 +1,212 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Dashboard – Technician Checklist</title>
   <link rel="stylesheet" href="/css/styles.css" />
 </head>
+
 <body>
 
-<nav class="navbar">
-  <a class="navbar-brand" href="/">📋 Checklist App</a>
-  <ul class="navbar-nav" id="navLinks"></ul>
-  <div class="navbar-right">
-    <span class="navbar-user" id="navUser"></span>
-    <button class="btn btn-sm btn-secondary" id="logoutBtn">Logout</button>
-  </div>
-</nav>
+<div class="app-layout">
+  <aside class="sidebar">
+    <a class="sidebar-brand" href="/">
+      <span class="icon">💻</span>
+      <span>Ops Hub</span>
+    </a>
+    <ul class="sidebar-nav" id="navLinks"></ul>
+    <div class="sidebar-footer">
+      <button class="btn btn-block btn-secondary btn-sm" id="logoutBtn">Logout</button>
+    </div>
+  </aside>
 
-<div class="container">
-  <h1 class="page-title">Dashboard</h1>
+  <div class="main-content">
+    <header class="top-header">
+      <div class="top-header-user">
+        <div class="user-profile">
+          <div class="user-avatar" id="navAvatar">U</div>
+          <span id="navUser">User Name</span>
+        </div>
+      </div>
+    </header>
 
-  <!-- Summary Stats -->
-  <div class="stats-grid" id="statsGrid">
+  <div class="container">
+    <h1 class="page-title">Dashboard</h1>
+
+    <!-- Technician Quick Actions -->
+    <div id="techQuickActions" class="mb-5 hidden">
+      <div class="grid-3">
+        <a href="/checklist" class="quick-action-card">
+          <div class="quick-action-icon">✅</div>
+          <div>
+            <h3 style="margin-bottom:0.25rem; font-size:1.1rem">Classroom Check</h3>
+            <p style="font-size:0.85rem;color:var(--gray-500)">Start a new daily equipment check</p>
+          </div>
+        </a>
+        <a href="/onboarding" class="quick-action-card">
+          <div class="quick-action-icon">💻</div>
+          <div>
+            <h3 style="margin-bottom:0.25rem; font-size:1.1rem">Issue Asset</h3>
+            <p style="font-size:0.85rem;color:var(--gray-500)">Log a new laptop or peripheral</p>
+          </div>
+        </a>
+        <a href="/qa" class="quick-action-card">
+          <div class="quick-action-icon">🔍</div>
+          <div>
+            <h3 style="margin-bottom:0.25rem; font-size:1.1rem">QA Process</h3>
+            <p style="font-size:0.85rem;color:var(--gray-500)">Perform setup verification list</p>
+          </div>
+        </a>
+      </div>
+    </div>
+
+    <!-- Admin Data Visualizations -->
+    <div id="adminCharts" class="mb-5 hidden">
+      <div class="row mb-4">
+        <div class="col-6">
+          <div class="card">
+            <div class="card-header"><span class="card-title">Daily Operational Pulse (Checks vs Flags)</span></div>
+            <div style="height: 250px;"><canvas id="dailyActivityChart"></canvas></div>
+          </div>
+        </div>
+        <div class="col-6">
+          <div class="card">
+            <div class="card-header"><span class="card-title">Equipment Health Mix (Last 7 Days)</span></div>
+            <div style="height: 250px;"><canvas id="statusMixChart"></canvas></div>
+          </div>
+        </div>
+      </div>
+      <div class="row mb-4">
+        <div class="col-6">
+          <div class="card">
+            <div class="card-header"><span class="card-title">High-Maintenance Classrooms (Top 5 Flags)</span></div>
+            <div style="height: 250px;"><canvas id="topClassroomsChart"></canvas></div>
+          </div>
+        </div>
+        <div class="col-6">
+          <div class="card">
+            <div class="card-header"><span class="card-title">Technician Performance (Submissions WTD)</span></div>
+            <div style="height: 250px;"><canvas id="techActivityChart"></canvas></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Summary Stats -->
+    <div class="stats-grid" id="statsGrid">
     <div class="stat-card">
       <span class="stat-value" id="statSubmissions">—</span>
-      <span class="stat-label">Submissions Today</span>
+      <span class="stat-label">Classroom Checks Today</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-value" id="statAssetAgreements">—</span>
+      <span class="stat-label">Asset Agreements Today</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-value" id="statQAChecklists">—</span>
+      <span class="stat-label">QA Lists Today</span>
     </div>
     <div class="stat-card warning">
       <span class="stat-value" id="statFlagged">—</span>
-      <span class="stat-label">Flagged Items</span>
+      <span class="stat-label">Flagged Equip</span>
     </div>
     <div class="stat-card danger">
       <span class="stat-value" id="statNotWorking">—</span>
-      <span class="stat-label">Not Working</span>
+      <span class="stat-label">Not Working Equip</span>
     </div>
     <div class="stat-card">
       <span class="stat-value" id="statClassrooms">—</span>
       <span class="stat-label">Classrooms</span>
     </div>
-  </div>
-
-  <!-- Filters -->
-  <div class="card">
-    <div class="card-header">
-      <span class="card-title">Filter Submissions</span>
-      <button class="btn btn-secondary btn-sm" id="exportBtn">⬇ Export CSV</button>
-    </div>
-    <div class="filter-bar">
-      <div class="form-group">
-        <label class="form-label">From Date</label>
-        <input class="form-control" type="date" id="filterStartDate" />
-      </div>
-      <div class="form-group">
-        <label class="form-label">To Date</label>
-        <input class="form-control" type="date" id="filterEndDate" />
-      </div>
-      <div class="form-group">
-        <label class="form-label">Classroom</label>
-        <select class="form-control" id="filterClassroom">
-          <option value="">All Classrooms</option>
-        </select>
-      </div>
-      <div class="form-group" id="techFilterGroup">
-        <label class="form-label">Technician</label>
-        <select class="form-control" id="filterTechnician">
-          <option value="">All Technicians</option>
-        </select>
-      </div>
-      <div class="form-group" style="align-self:flex-end">
-        <button class="btn btn-primary" id="applyFiltersBtn">Apply</button>
-      </div>
+    <div class="stat-card" id="statTechnicianCard">
+      <span class="stat-value" id="statTechnicians">—</span>
+      <span class="stat-label">Technicians</span>
     </div>
   </div>
 
-  <!-- Issues section -->
-  <div class="card" id="issuesCard">
-    <div class="card-header">
-      <span class="card-title">⚠️ Flagged Items (Today)</span>
+    <!-- Filters -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Filter Submissions</span>
+        <button class="btn btn-secondary btn-sm" id="exportBtn">⬇ Export PDF</button>
+      </div>
+      <div class="filter-bar">
+        <div class="form-group">
+          <label class="form-label">From Date</label>
+          <input class="form-control" type="date" id="filterStartDate" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">To Date</label>
+          <input class="form-control" type="date" id="filterEndDate" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Classroom</label>
+          <select class="form-control" id="filterClassroom">
+            <option value="">All Classrooms</option>
+          </select>
+        </div>
+        <div class="form-group" id="techFilterGroup">
+          <label class="form-label">Technician</label>
+          <select class="form-control" id="filterTechnician">
+            <option value="">All Technicians</option>
+          </select>
+        </div>
+        <div class="form-group" style="align-self:flex-end">
+          <button class="btn btn-primary" id="applyFiltersBtn">Apply</button>
+        </div>
+      </div>
     </div>
-    <div id="issuesList">
-      <div class="spinner"></div>
-    </div>
-  </div>
 
-  <!-- Submissions table -->
-  <div class="card">
+    <!-- Issues section -->
+    <div class="card" id="issuesCard">
+      <div class="card-header">
+        <span class="card-title">⚠️ Flagged Items (Today)</span>
+      </div>
+      <div id="issuesList">
+        <div class="spinner"></div>
+      </div>
+    </div>
+
+    <!-- Submissions table -->
+  <div class="card mb-4" id="classroomChecksCard">
     <div class="card-header">
-      <span class="card-title">Submissions</span>
+      <span class="card-title">Classroom Checklists</span>
     </div>
     <div id="submissionsContainer">
       <div class="spinner"></div>
     </div>
   </div>
+
+  <div class="row">
+    <div class="col-6">
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Recent Asset Agreements</span>
+        </div>
+        <div id="assetAgreementsContainer">
+          <div class="spinner"></div>
+        </div>
+      </div>
+    </div>
+    <div class="col-6">
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Recent QA Checklists</span>
+        </div>
+        <div id="qaChecklistsContainer">
+          <div class="spinner"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
 </div>
 
-<script src="/js/dashboard.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="/js/dashboard.js"></script>
 </body>
+
 </html>

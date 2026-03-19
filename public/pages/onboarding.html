@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Asset Agreement – Technician Checklist</title>
+  <link rel="stylesheet" href="/css/styles.css" />
+</head>
+<body>
+
+<div class="app-layout">
+  <aside class="sidebar">
+    <a class="sidebar-brand" href="/">
+      <span class="icon">💻</span>
+      <span>Ops Hub</span>
+    </a>
+    <ul class="sidebar-nav" id="navLinks"></ul>
+    <div class="sidebar-footer">
+      <button class="btn btn-block btn-secondary btn-sm" id="logoutBtn">Logout</button>
+    </div>
+  </aside>
+
+  <div class="main-content">
+    <header class="top-header">
+      <div class="top-header-user">
+        <div class="user-profile">
+          <div class="user-avatar" id="navAvatar">U</div>
+          <span id="navUser">User Name</span>
+        </div>
+      </div>
+    </header>
+
+<div class="container">
+  <h1 class="page-title">Asset Agreement</h1>
+
+  <div class="row">
+    <!-- Form Section -->
+    <div class="col-8">
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">IT Equipment Issued to Employee</span>
+        </div>
+        
+        <div id="submitSuccess" class="alert alert-success mt-3 hidden"></div>
+        <div id="submitError" class="alert alert-danger mt-3 hidden"></div>
+
+        <form id="assetAgreementForm">
+          <div class="form-group mb-3">
+            <label class="form-label">Employee Name *</label>
+            <input type="text" class="form-control" id="employeeName" placeholder="e.g. John Smith" required />
+          </div>
+          
+          <div class="row mb-3">
+            <div class="col-6">
+              <div class="form-group">
+                <label class="form-label">Laptop Serial Number</label>
+                <input type="text" class="form-control" id="laptopSerialNumber" placeholder="e.g. 2TBLL53" />
+              </div>
+            </div>
+            <div class="col-6">
+              <div class="form-group">
+                <label class="form-label">Sim Card Number</label>
+                <input type="text" class="form-control" id="simCardNumber" placeholder="e.g. 894..." />
+              </div>
+            </div>
+          </div>
+
+          <hr class="my-4" style="border-top: 1px solid var(--border);" />
+          
+          <h4 class="mb-3">Standard Equipment Included</h4>
+          
+          <div class="row">
+             <div class="col-6">
+               <div class="form-check mb-2">
+                 <input type="checkbox" id="dongle" />
+                 <label for="dongle">Dongle</label>
+               </div>
+               <div class="form-check mb-2">
+                 <input type="checkbox" id="laptopCharger" />
+                 <label for="laptopCharger">Laptop Charger</label>
+               </div>
+               <div class="form-check mb-2">
+                 <input type="checkbox" id="laptopBag" />
+                 <label for="laptopBag">Laptop Bag</label>
+               </div>
+             </div>
+             <div class="col-6">
+               <div class="form-check mb-2">
+                 <input type="checkbox" id="mouse" />
+                 <label for="mouse">Mouse</label>
+               </div>
+               <div class="form-check mb-2">
+                 <input type="checkbox" id="monitor" />
+                 <label for="monitor">Monitor</label>
+               </div>
+               <div class="form-check mb-2">
+                 <input type="checkbox" id="keyboard" />
+                 <label for="keyboard">Keyboard</label>
+               </div>
+             </div>
+          </div>
+
+          <div class="alert alert-info mt-4">
+            <small>
+              <strong>Agreement:</strong> I confirm that the above equipment was issued to me upon commencing employment with GIBS. I agree that upon my termination of employment with GIBS, I will return all IT equipment and campus access cards.
+            </small>
+          </div>
+
+          <button type="button" class="btn btn-primary btn-block mt-4" id="submitBtn">Save Asset Agreement</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- History Section -->
+    <div class="col-4">
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Recent Agreements</span>
+        </div>
+        <div id="historyList">
+           <div class="spinner"></div>
+           <!-- Populated via JS -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</div>
+</div>
+
+<script src="/js/onboarding.js"></script>
+</body>
+</html>

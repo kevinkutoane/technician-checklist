@@ -265,3 +265,94 @@ describe('GET /api/dashboard/export', () => {
     expect((await request(app).get('/api/dashboard/export')).status).toBe(401);
   });
 });
+
+// ═══ GET /api/dashboard/classroom-status-today ════════════════════════════════
+
+describe('GET /api/dashboard/classroom-status-today', () => {
+  test('returns 200 array for technician', async () => {
+    const res = await request(app)
+      .get('/api/dashboard/classroom-status-today')
+      .set('Cookie', techCookie);
+    expect(res.status).toBe(200);
+    expect(Array.isArray(res.body)).toBe(true);
+  });
+
+  test('returns 200 array for admin', async () => {
+    const res = await request(app)
+      .get('/api/dashboard/classroom-status-today')
+      .set('Cookie', adminCookie);
+    expect(res.status).toBe(200);
+    expect(Array.isArray(res.body)).toBe(true);
+  });
+
+  test('each classroom has id, name, and submissions array', async () => {
+    const res = await request(app)
+      .get('/api/dashboard/classroom-status-today')
+      .set('Cookie', techCookie);
+    expect(res.status).toBe(200);
+    expect(res.body.length).toBeGreaterThanOrEqual(2);
+    for (const classroom of res.body) {
+      expect(classroom).toHaveProperty('id');
+      expect(classroom).toHaveProperty('name');
+      expect(classroom).toHaveProperty('submissions');
+      expect(Array.isArray(classroom.submissions)).toBe(true);
+    }
+  });
+
+  test('submissions array is empty when no submissions exist for that classroom today', async () => {
+    // classroom_id=2 is not submitted by any seeded data for today
+    const res = await request(app)
+      .get('/api/dashboard/classroom-status-today')
+      .set('Cookie', techCookie);
+    expect(res.status).toBe(200);
+    // At least one classroom should have empty submissions on a fresh test run
+    const hasEmpty = res.body.some((c) => c.submissions.length === 0);
+    expect(hasEmpty).toBe(true);
+  });
+
+  test('submission entries have required fields after a submission', async () => {
+    const today = new Date().toISOString().slice(0, 10);
+    // Create a submission in classroom 1
+    await request(app)
+      .post('/api/checklists')
+      .set('Cookie', techCookie)
+      .send({
+        classroom_id: 1,
+        submission_date: today,
+        general_notes: 'Status test',
+        items: [
+          { equipment_id: 1, status: 'working', notes: '' },
+        ],
+      });
+
+    const res = await request(app)
+      .get('/api/dashboard/classroom-status-today')
+      .set('Cookie', techCookie);
+    expect(res.status).toBe(200);
+
+    const room1 = res.body.find((c) => c.id === 1);
+    expect(room1).toBeDefined();
+    expect(room1.submissions.length).toBeGreaterThanOrEqual(1);
+
+    const sub = room1.submissions[0];
+    expect(sub).toHaveProperty('technician_id');
+    expect(sub).toHaveProperty('technician_name');
+    expect(sub).toHaveProperty('submitted_at');
+    expect(sub).toHaveProperty('general_notes');
+    expect(sub).toHaveProperty('items');
+    expect(Array.isArray(sub.items)).toBe(true);
+
+    // Each item should have equipment_name, status, notes
+    for (const item of sub.items) {
+      expect(item).toHaveProperty('equipment_name');
+      expect(item).toHaveProperty('status');
+      expect(item).toHaveProperty('notes');
+    }
+  });
+
+  test('unauthenticated returns 401', async () => {
+    expect(
+      (await request(app).get('/api/dashboard/classroom-status-today')).status
+    ).toBe(401);
+  });
+});

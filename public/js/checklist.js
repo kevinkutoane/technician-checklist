@@ -53,6 +53,22 @@ async function loadChecklistData() {
     const existingAlert = document.getElementById('existingAlert');
     if (existing.length > 0) {
       existingAlert.classList.remove('hidden');
+      // Show who else submitted this classroom today
+      const detailEl = document.getElementById('existingAlertDetail');
+      if (detailEl && statusData.length) {
+        const room = statusData.find((c) => String(c.id) === String(classroomId));
+        if (room && room.submissions.length) {
+          detailEl.innerHTML = room.submissions.map((s) => {
+            const isMe = s.technician_id === currentUser.id;
+            const time = s.submitted_at
+              ? new Date(s.submitted_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+              : '';
+            return `<div>${isMe ? '<strong>You</strong>' : esc(s.technician_name)} submitted at ${time}</div>`;
+          }).join('');
+        } else {
+          detailEl.innerHTML = '';
+        }
+      }
     } else {
       existingAlert.classList.add('hidden');
     }
@@ -184,6 +200,8 @@ document.getElementById('submitBtn').addEventListener('click', async () => {
     checklistForm.classList.add('hidden');
     // Reset form
     classroomSelect.value = '';
+    // Refresh the status panel so the new submission shows immediately
+    await refreshStatus();
   } catch (err) {
     errEl.textContent = `Error: ${err.message}`;
     errEl.classList.remove('hidden');
@@ -194,8 +212,16 @@ document.getElementById('submitBtn').addEventListener('click', async () => {
 });
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
+let statusData = [];   // cache from loadClassroomStatus — used by existingAlert
+let statusPollId = null;
+
+async function refreshStatus() {
+  statusData = await loadClassroomStatus('todayStatusPanel', currentUser.id);
+}
+
 (async function init() {
   currentUser = await initNav('/checklist');
   if (!currentUser) return;
-  await loadClassrooms();
+  await Promise.all([loadClassrooms(), refreshStatus()]);
+  statusPollId = setInterval(refreshStatus, 30_000);
 })();

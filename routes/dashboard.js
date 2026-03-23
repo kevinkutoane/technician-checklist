@@ -37,6 +37,47 @@ router.get('/today-progress', (req, res) => {
   res.json(result);
 });
 
+// GET /api/dashboard/classroom-status-today
+// Returns every classroom with per-submission detail (technician, items) for today.
+// Accessible to all authenticated users.
+router.get('/classroom-status-today', (req, res) => {
+  const today = new Date().toISOString().slice(0, 10);
+
+  const classrooms = db.prepare('SELECT id, name FROM classrooms ORDER BY name').all();
+
+  const result = classrooms.map((c) => {
+    const subs = db.prepare(`
+      SELECT cs.id, cs.technician_id, u.full_name AS technician_name,
+             cs.general_notes, cs.created_at AS submitted_at
+      FROM checklist_submissions cs
+      JOIN users u ON cs.technician_id = u.id
+      WHERE cs.classroom_id = ? AND cs.submission_date = ?
+      ORDER BY cs.created_at ASC
+    `).all(c.id, today);
+
+    const subsWithItems = subs.map((s) => {
+      const items = db.prepare(`
+        SELECT e.name AS equipment_name, ci.status, ci.notes
+        FROM checklist_items ci
+        JOIN equipment e ON ci.equipment_id = e.id
+        WHERE ci.submission_id = ?
+        ORDER BY e.name ASC
+      `).all(s.id);
+      return {
+        technician_id: s.technician_id,
+        technician_name: s.technician_name,
+        submitted_at: s.submitted_at,
+        general_notes: s.general_notes || '',
+        items,
+      };
+    });
+
+    return { id: c.id, name: c.name, submissions: subsWithItems };
+  });
+
+  res.json(result);
+});
+
 // GET /api/dashboard/equipment-trends?classroom_id=X&days=14
 // Returns daily status counts for every piece of equipment in a classroom,
 // for the last N days (default 14, max 90).

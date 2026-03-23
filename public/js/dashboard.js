@@ -196,37 +196,10 @@ async function loadQAChecklists() {
 }
 
 // ─── Today's Classroom Completion Progress ────────────────────────────────────
+let progressPollId = null;
+
 async function loadTodayProgress() {
-  const el = document.getElementById('todayProgressGrid');
-  if (!el) return;
-  try {
-    const list = await apiFetch('/api/dashboard/today-progress');
-    if (!list.length) {
-      el.innerHTML = '<p style="color:var(--text-muted);font-size:0.875rem">No classrooms configured.</p>';
-      return;
-    }
-    el.innerHTML = list.map((c) => {
-      if (currentUser && currentUser.role === 'admin') {
-        const done  = c.total_today > 0;
-        const color = done ? '#10b981' : '#9ca3af';
-        const bg    = done ? '#d1fae5' : '#f3f4f6';
-        return `<div style="background:${bg};border-radius:8px;padding:8px 10px;font-size:0.8rem;text-align:center;min-width:80px;">
-          <div style="font-weight:600;color:${color}">${esc(c.name)}</div>
-          <div style="color:${color};font-size:0.75rem">${c.total_today} check${c.total_today !== 1 ? 's' : ''}</div>
-        </div>`;
-      } else {
-        const color = c.submitted_by_me ? '#10b981' : '#9ca3af';
-        const bg    = c.submitted_by_me ? '#d1fae5' : '#f3f4f6';
-        const icon  = c.submitted_by_me ? '✅' : '○';
-        return `<div style="background:${bg};border-radius:8px;padding:8px 10px;font-size:0.8rem;text-align:center;min-width:80px;">
-          <div style="font-size:1rem">${icon}</div>
-          <div style="color:${color};font-weight:600">${esc(c.name)}</div>
-        </div>`;
-      }
-    }).join('');
-  } catch (err) {
-    el.innerHTML = `<div class="alert alert-danger">${err.message}</div>`;
-  }
+  await loadClassroomStatus('todayProgressGrid', currentUser ? currentUser.id : null);
 }
 
 // ─── Equipment Status Trends (Admin only) ─────────────────────────────────────
@@ -552,6 +525,8 @@ document.getElementById('applyFiltersBtn').addEventListener('click', async () =>
     loadAdminCharts(),
     populateFilterSelects(),
   ]);
+
+  progressPollId = setInterval(loadTodayProgress, 30_000);
 
   // Populate classroom selector for trends (admin only)
   if (currentUser && currentUser.role === 'admin') {

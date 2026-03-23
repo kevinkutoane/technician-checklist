@@ -1,61 +1,6 @@
 'use strict';
 
-async function apiFetch(url, opts = {}) {
-  const res = await fetch(url, {
-    headers: { 'Content-Type': 'application/json', ...(opts.headers || {}) },
-    ...opts,
-  });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) {
-    const err = new Error(data.error || `HTTP ${res.status}`);
-    err.status = res.status;
-    throw err;
-  }
-  return data;
-}
-
-function applyTheme(theme) {
-  document.documentElement.setAttribute('data-theme', theme || 'light');
-}
-
-// ─── Nav ─────────────────────────────────────────────────────────────────────
 let currentUser = null;
-
-async function initNav() {
-  try {
-    currentUser = await apiFetch('/api/auth/me');
-  } catch (err) {
-    if (!err.status || err.status === 401) window.location.href = '/';
-    return;
-  }
-
-  document.getElementById('navUser').textContent = currentUser.full_name;
-  const avatarEl = document.getElementById('navAvatar');
-  if (avatarEl) avatarEl.textContent = currentUser.full_name[0].toUpperCase();
-
-  const navLinks = document.getElementById('navLinks');
-  const links = [];
-  if (currentUser.role === 'technician') {
-    links.push(`<li><a href="/checklist"><span class="icon">✅</span> Checklist</a></li>`);
-    links.push(`<li><a href="/onboarding"><span class="icon">💻</span> Asset Agreement</a></li>`);
-    links.push(`<li><a href="/qa"><span class="icon">🔍</span> QA Checklist</a></li>`);
-  }
-  links.push(`<li><a href="/dashboard"><span class="icon">📊</span> Dashboard</a></li>`);
-  if (currentUser.role === 'admin') {
-    links.push(`<li><a href="/admin"><span class="icon">⚙️</span> Admin</a></li>`);
-  }
-  links.push(`<li><a href="/settings" class="active"><span class="icon">🔧</span> Settings</a></li>`);
-  navLinks.innerHTML = links.join('');
-
-  document.getElementById('logoutBtn').addEventListener('click', () => {
-    window.location.href = '/logout';
-  });
-
-  // Show Notifications tab for admins only
-  if (currentUser.role === 'admin') {
-    document.getElementById('notificationsTabBtn').classList.remove('hidden');
-  }
-}
 
 // ─── Tab handling ─────────────────────────────────────────────────────────────
 document.querySelectorAll('.tab-btn').forEach((btn) => {
@@ -177,6 +122,10 @@ document.getElementById('notificationsForm').addEventListener('submit', async (e
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
 (async function init() {
-  await initNav();
+  currentUser = await initNav('/settings');
+  if (!currentUser) return;
+  if (currentUser.role === 'admin') {
+    document.getElementById('notificationsTabBtn').classList.remove('hidden');
+  }
   await Promise.all([loadProfile(), loadPreferences()]);
 })();

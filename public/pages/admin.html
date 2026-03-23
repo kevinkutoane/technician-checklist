@@ -40,7 +40,8 @@
 
   <!-- Tabs -->
   <div class="tabs">
-    <button class="tab-btn active" data-tab="classrooms">Classrooms</button>
+    <button class="tab-btn active" data-tab="overview">Overview</button>
+    <button class="tab-btn" data-tab="classrooms">Classrooms</button>
     <button class="tab-btn" data-tab="equipment">Equipment</button>
     <button class="tab-btn" data-tab="technicians">Technicians</button>
     <button class="tab-btn" data-tab="submissions">Checklist Submissions</button>
@@ -49,8 +50,13 @@
     <button class="tab-btn" data-tab="auditlog">Audit Log</button>
   </div>
 
+  <!-- ─── Overview Tab ──────────────────────────────────────────────── -->
+  <div id="tab-overview" class="tab-content active">
+    <div id="overviewContent"><div class="spinner"></div></div>
+  </div>
+
   <!-- ─── Classrooms Tab ─────────────────────────────────────────────── -->
-  <div id="tab-classrooms" class="tab-content active">
+  <div id="tab-classrooms" class="tab-content">
     <div class="card">
       <div class="card-header">
         <span class="card-title">Classrooms</span>

@@ -9,6 +9,7 @@
  */
 
 const nodemailer = require('nodemailer');
+const db = require('../db/database');
 
 const SMTP_HOST  = process.env.SMTP_HOST  || '';
 const SMTP_PORT  = parseInt(process.env.SMTP_PORT || '587', 10);
@@ -40,7 +41,24 @@ if (SMTP_HOST) {
  * @param {string} submissionDate YYYY-MM-DD
  */
 async function sendFlagAlert(flaggedItems, classroomName, technicianName, submissionDate) {
-  if (!transporter || !ALERT_EMAIL) return;
+  if (!transporter) return;
+
+  // Collect recipients: admin users who have set an alert_email preference,
+  // or fall back to the ALERT_EMAIL environment variable.
+  let recipients = [];
+  try {
+    const rows = db.prepare(`
+      SELECT up.pref_value AS email
+      FROM user_preferences up
+      JOIN users u ON u.id = up.user_id
+      WHERE u.role = 'admin' AND up.pref_key = 'alert_email'
+        AND up.pref_value != ''
+    `).all();
+    recipients = rows.map((r) => r.email);
+  } catch (_) { /* table not yet created */ }
+
+  if (recipients.length === 0 && ALERT_EMAIL) recipients = [ALERT_EMAIL];
+  if (recipients.length === 0) return;
 
   const subject = `[Checklist Alert] Flagged equipment in ${classroomName} — ${submissionDate}`;
 
@@ -69,7 +87,7 @@ async function sendFlagAlert(flaggedItems, classroomName, technicianName, submis
   try {
     await transporter.sendMail({
       from: FROM_EMAIL,
-      to: ALERT_EMAIL,
+      to: recipients.join(','),
       subject,
       html,
     });

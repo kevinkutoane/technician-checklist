@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#4f46e5" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="apple-touch-icon" href="/icons/icon.svg" />
+  <title>Settings – Technician Checklist</title>
+  <link rel="stylesheet" href="/css/styles.css" />
+</head>
+<body>
+
+<div class="app-layout">
+  <aside class="sidebar">
+    <a class="sidebar-brand" href="/">
+      <span class="icon">💻</span>
+      <span>Ops Hub</span>
+    </a>
+    <ul class="sidebar-nav" id="navLinks"></ul>
+    <div class="sidebar-footer">
+      <button class="btn btn-block btn-secondary btn-sm" id="logoutBtn">Logout</button>
+    </div>
+  </aside>
+
+  <div class="main-content">
+    <header class="top-header">
+      <div class="top-header-user">
+        <div class="user-profile">
+          <div class="user-avatar" id="navAvatar">U</div>
+          <span id="navUser">User Name</span>
+        </div>
+      </div>
+    </header>
+
+    <div class="container">
+      <h1 class="page-title">Settings</h1>
+
+      <!-- Tabs -->
+      <div class="tabs">
+        <button class="tab-btn active" data-tab="profile">Profile</button>
+        <button class="tab-btn" data-tab="preferences">Preferences</button>
+        <button class="tab-btn hidden" id="notificationsTabBtn" data-tab="notifications">Notifications</button>
+      </div>
+
+      <!-- ─── Profile Tab ─────────────────────────────────────────────── -->
+      <div id="tab-profile" class="tab-content active">
+        <div class="card mb-4">
+          <div class="card-header"><span class="card-title">Display Information</span></div>
+          <form id="profileForm" style="padding:1.25rem;max-width:480px">
+            <div class="form-group">
+              <label class="form-label" for="inputFullName">Display Name</label>
+              <input class="form-control" type="text" id="inputFullName" autocomplete="name" required />
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="inputUsername">Username</label>
+              <input class="form-control" type="text" id="inputUsername" autocomplete="username" required />
+            </div>
+            <div id="profileMsg" class="hidden" style="margin-bottom:.75rem"></div>
+            <button class="btn btn-primary" type="submit">Save Profile</button>
+          </form>
+        </div>
+
+        <div class="card">
+          <div class="card-header"><span class="card-title">Change Password</span></div>
+          <form id="passwordForm" style="padding:1.25rem;max-width:480px">
+            <div class="form-group">
+              <label class="form-label" for="inputCurrentPassword">Current Password</label>
+              <input class="form-control" type="password" id="inputCurrentPassword" autocomplete="current-password" required />
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="inputNewPassword">New Password</label>
+              <input class="form-control" type="password" id="inputNewPassword" autocomplete="new-password" required minlength="8" />
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="inputConfirmPassword">Confirm New Password</label>
+              <input class="form-control" type="password" id="inputConfirmPassword" autocomplete="new-password" required minlength="8" />
+            </div>
+            <div id="passwordMsg" class="hidden" style="margin-bottom:.75rem"></div>
+            <button class="btn btn-primary" type="submit">Change Password</button>
+          </form>
+        </div>
+      </div>
+
+      <!-- ─── Preferences Tab ────────────────────────────────────────── -->
+      <div id="tab-preferences" class="tab-content">
+        <div class="card" style="max-width:520px">
+          <div class="card-header"><span class="card-title">Appearance</span></div>
+          <div style="padding:1.25rem">
+            <label class="form-label">Theme</label>
+            <div class="theme-toggle-row">
+              <span>Light</span>
+              <label class="toggle-switch">
+                <input type="checkbox" id="darkModeToggle" />
+                <span class="toggle-slider"></span>
+              </label>
+              <span>Dark</span>
+            </div>
+            <p class="text-muted" style="font-size:.85rem;margin-top:.5rem">Your theme preference is saved automatically.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- ─── Notifications Tab (admin only) ────────────────────────── -->
+      <div id="tab-notifications" class="tab-content">
+        <div class="card" style="max-width:520px">
+          <div class="card-header"><span class="card-title">Flag Alert Email</span></div>
+          <form id="notificationsForm" style="padding:1.25rem">
+            <p class="text-muted" style="font-size:.9rem;margin-bottom:1rem">
+              When a technician submits a checklist with flagged equipment, an alert email will be sent to this address.
+              Leave blank to use the system default (<code>ALERT_EMAIL</code> env var).
+            </p>
+            <div class="form-group">
+              <label class="form-label" for="inputAlertEmail">Alert Email Address</label>
+              <input class="form-control" type="email" id="inputAlertEmail" autocomplete="email" placeholder="e.g. it@example.com" />
+            </div>
+            <div id="notificationsMsg" class="hidden" style="margin-bottom:.75rem"></div>
+            <button class="btn btn-primary" type="submit">Save</button>
+          </form>
+        </div>
+      </div>
+
+    </div><!-- /.container -->
+  </div><!-- /.main-content -->
+</div><!-- /.app-layout -->
+
+<script src="/js/settings.js"></script>
+</body>
+</html>

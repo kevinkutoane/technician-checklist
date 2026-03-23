@@ -29,7 +29,9 @@ function statusBadge(status) {
 }
 
 let currentUser = null;
-
+function applyTheme(theme) {
+  document.documentElement.setAttribute('data-theme', theme || 'light');
+}
 // ─── Nav ─────────────────────────────────────────────────────────────────────
 async function initNav() {
   try {
@@ -54,7 +56,14 @@ async function initNav() {
   if (currentUser.role === 'admin') {
     links.push(`<li><a href="/admin"><span class="icon">⚙️</span> Admin</a></li>`);
   }
+  links.push(`<li><a href="/settings"><span class="icon">🔧</span> Settings</a></li>`);
   navLinks.innerHTML = links.join('');
+
+  // Apply saved theme
+  try {
+    const prefs = await apiFetch('/api/settings/preferences');
+    applyTheme(prefs.theme);
+  } catch (_) { /* ignore */ }
 
   document.getElementById('logoutBtn').addEventListener('click', async () => {
     await fetch('/api/auth/logout', { method: 'POST' });
@@ -82,8 +91,28 @@ async function loadStats() {
     const techCard = document.getElementById('statTechnicianCard');
     if (currentUser && currentUser.role === 'admin') {
       document.getElementById('statTechnicians').textContent = s.totalTechnicians;
+      // Coverage stat — requires admin-overview data
+      try {
+        const ov = await apiFetch('/api/dashboard/admin-overview');
+        const pct = ov.classrooms_total > 0
+          ? Math.round((ov.classrooms_checked_today / ov.classrooms_total) * 100)
+          : 0;
+        document.getElementById('statCoverage').textContent = `${pct}%`;
+        // Unchecked alert
+        if (ov.classrooms_unchecked.length > 0) {
+          const alertEl = document.getElementById('uncheckedAlert');
+          alertEl.classList.remove('hidden');
+          alertEl.innerHTML = `
+            <div class="alert alert-warning" style="margin-bottom:1.5rem">
+              <strong>⚠️ ${ov.classrooms_unchecked.length} classroom(s) not yet checked today:</strong>
+              ${ov.classrooms_unchecked.join(', ')}
+            </div>`;
+        }
+      } catch (_) { /* ignore */ }
     } else if (techCard) {
       techCard.style.display = 'none';
+      const covCard = document.getElementById('statCoverageCard');
+      if (covCard) covCard.style.display = 'none';
     }
   } catch (err) {
     console.error('Stats error:', err);

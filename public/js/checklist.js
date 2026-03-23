@@ -21,7 +21,9 @@ function esc(str) {
 
 let currentUser = null;
 let selectedEquipment = [];
-
+function applyTheme(theme) {
+  document.documentElement.setAttribute('data-theme', theme || 'light');
+}
 // ─── Nav ─────────────────────────────────────────────────────────────────────
 async function initNav() {
   try {
@@ -46,7 +48,14 @@ async function initNav() {
   if (currentUser.role === 'admin') {
     links.push(`<li><a href="/admin"><span class="icon">⚙️</span> Admin</a></li>`);
   }
+  links.push(`<li><a href="/settings"><span class="icon">🔧</span> Settings</a></li>`);
   navLinks.innerHTML = links.join('');
+
+  // Apply saved theme
+  try {
+    const prefs = await apiFetch('/api/settings/preferences');
+    applyTheme(prefs.theme);
+  } catch (_) { /* ignore */ }
 
   document.getElementById('logoutBtn').addEventListener('click', async () => {
     await fetch('/api/auth/logout', { method: 'POST' });

@@ -145,6 +145,18 @@ try {
   // Column already exists — safe to ignore
 }
 
+// User preferences — key/value store per user (theme, alert_email, etc.)
+db.exec(`
+  CREATE TABLE IF NOT EXISTS user_preferences (
+    user_id   INTEGER NOT NULL,
+    pref_key  TEXT    NOT NULL,
+    pref_value TEXT   NOT NULL DEFAULT '',
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (user_id, pref_key),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+  );
+`);
+
 // Performance indexes — keep queries fast as data grows
 db.exec(`
   CREATE INDEX IF NOT EXISTS idx_cs_date       ON checklist_submissions(submission_date);

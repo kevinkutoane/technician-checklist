@@ -16,6 +16,11 @@ function statusBadge(status) {
   return `<span class="badge badge-${status}">${labels[status] || status}</span>`;
 }
 
+// ─── Theme ────────────────────────────────────────────────────────────────
+function applyTheme(theme) {
+  document.documentElement.setAttribute('data-theme', theme || 'light');
+}
+
 // ─── Nav / Auth ────────────────────────────────────────────────────────────
 let currentUser = null;
 
@@ -42,7 +47,14 @@ async function initNav() {
   if (currentUser.role === 'admin') {
     links.push(`<li><a href="/admin" class="active"><span class="icon">⚙️</span> Admin</a></li>`);
   }
+  links.push(`<li><a href="/settings"><span class="icon">🔧</span> Settings</a></li>`);
   navLinks.innerHTML = links.join('');
+
+  // Apply saved theme
+  try {
+    const prefs = await apiFetch('/api/settings/preferences');
+    applyTheme(prefs.theme);
+  } catch (_) { /* ignore */ }
 
   document.getElementById('logoutBtn').addEventListener('click', async () => {
     await fetch('/api/auth/logout', { method: 'POST' });
@@ -670,5 +682,96 @@ async function loadAuditLog() {
 
 (async function init() {
   await initNav();
-  await Promise.all([loadClassrooms(), loadTechnicians()]);
+  await Promise.all([loadOverview(), loadClassrooms(), loadTechnicians()]);
 })();
+
+// ─── Overview ─────────────────────────────────────────────────────────────
+async function loadOverview() {
+  const el = document.getElementById('overviewContent');
+  try {
+    const d = await apiFetch('/api/dashboard/admin-overview');
+
+    const today = new Date().toLocaleDateString('en-ZA', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+
+    const uncheckedHtml = d.classrooms_unchecked.length === 0
+      ? `<span class="text-success">All classrooms checked ✅</span>`
+      : `<ul class="list" style="margin:0;padding-left:1rem">${d.classrooms_unchecked.map((n) => `<li>${n}</li>`).join('')}</ul>`;
+
+    const flaggedRowsHtml = d.top_flagged_today.length === 0
+      ? `<p class="text-muted" style="margin:0">No flagged items today.</p>`
+      : d.top_flagged_today.map((f) =>
+          `<div class="item-row">
+            <span>${f.equipment_name} — <em>${f.classroom_name}</em></span>
+            ${statusBadge(f.status)}
+            ${f.notes ? `<span class="text-muted" style="font-size:.85em">${f.notes}</span>` : ''}
+          </div>`
+        ).join('');
+
+    const problemEquipHtml = d.top_problem_equipment.length === 0
+      ? `<p class="text-muted" style="margin:0">No issues in past 30 days.</p>`
+      : d.top_problem_equipment.map((e) =>
+          `<div class="item-row"><span>${e.equipment_name}</span><span class="badge badge-not_working">${e.issue_count} issues</span></div>`
+        ).join('');
+
+    const auditHtml = d.recent_audit.length === 0
+      ? `<p class="text-muted" style="margin:0">No recent activity.</p>`
+      : d.recent_audit.map((a) =>
+          `<div class="item-row"><span class="text-muted" style="font-size:.8em">${a.created_at ? a.created_at.slice(0, 16) : ''}</span> <strong>${a.actor || 'System'}</strong> — ${a.action}${a.details ? `: <em>${a.details}</em>` : ''}</div>`
+        ).join('');
+
+    el.innerHTML = `
+      <p class="text-muted" style="margin-bottom:1rem">${today}</p>
+
+      <div class="stats-grid" style="margin-bottom:1.5rem">
+        <div class="stat-card">
+          <div class="stat-value">${d.classrooms_total}</div>
+          <div class="stat-label">Total Classrooms</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value">${d.equipment_total}</div>
+          <div class="stat-label">Total Equipment</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value">${d.technicians_total}</div>
+          <div class="stat-label">Technicians</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value">${d.classrooms_checked_today}</div>
+          <div class="stat-label">Checked Today</div>
+        </div>
+        <div class="stat-card ${d.classrooms_unchecked.length > 0 ? 'stat-card-warning' : ''}">
+          <div class="stat-value">${d.classrooms_unchecked.length}</div>
+          <div class="stat-label">Unchecked Today</div>
+        </div>
+        <div class="stat-card ${d.flagged_today > 0 ? 'stat-card-danger' : ''}">
+          <div class="stat-value">${d.flagged_today}</div>
+          <div class="stat-label">Flagged Items Today</div>
+        </div>
+      </div>
+
+      <div class="overview-grid">
+        <div class="card">
+          <div class="card-header"><span class="card-title">📋 Unchecked Classrooms Today</span></div>
+          <div class="card-body">${uncheckedHtml}</div>
+        </div>
+
+        <div class="card">
+          <div class="card-header"><span class="card-title">🚩 Flagged Items Today</span></div>
+          <div class="card-body">${flaggedRowsHtml}</div>
+        </div>
+
+        <div class="card">
+          <div class="card-header"><span class="card-title">📉 Most Problematic Equipment (30 days)</span></div>
+          <div class="card-body">${problemEquipHtml}</div>
+        </div>
+
+        <div class="card">
+          <div class="card-header"><span class="card-title">🕒 Recent Activity</span></div>
+          <div class="card-body">${auditHtml}</div>
+        </div>
+      </div>
+    `;
+  } catch (err) {
+    el.innerHTML = `<div class="alert alert-danger">${err.message}</div>`;
+  }
+}

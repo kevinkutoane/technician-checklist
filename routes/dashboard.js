@@ -357,4 +357,98 @@ router.get('/export', (req, res) => {
   doc.end();
 });
 
+// GET /api/dashboard/admin-overview
+// Admin-only summary for the Overview tab in the admin panel
+router.get('/admin-overview', requireAdmin, (req, res) => {
+  const today = new Date().toISOString().slice(0, 10);
+  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+    .toISOString().slice(0, 10);
+
+  // Totals
+  const classrooms_total = db.prepare('SELECT COUNT(*) AS n FROM classrooms').get().n;
+  const equipment_total  = db.prepare('SELECT COUNT(*) AS n FROM equipment').get().n;
+  const technicians_total = db.prepare(
+    "SELECT COUNT(*) AS n FROM users WHERE role = 'technician'"
+  ).get().n;
+
+  // Classrooms checked today (at least one submission today)
+  const classrooms_checked_today = db.prepare(`
+    SELECT COUNT(DISTINCT classroom_id) AS n FROM checklist_submissions
+    WHERE submission_date = ?
+  `).get(today).n;
+
+  // Unchecked classrooms today
+  const uncheckedRows = db.prepare(`
+    SELECT c.name FROM classrooms c
+    WHERE c.id NOT IN (
+      SELECT DISTINCT classroom_id FROM checklist_submissions WHERE submission_date = ?
+    )
+    ORDER BY c.name
+  `).all(today);
+  const classrooms_unchecked = uncheckedRows.map((r) => r.name);
+
+  // Flagged items today (working = not flagged; anything else is flagged)
+  const flagged_today = db.prepare(`
+    SELECT COUNT(*) AS n FROM checklist_items ci
+    JOIN checklist_submissions cs ON ci.submission_id = cs.id
+    WHERE cs.submission_date = ? AND ci.status != 'working'
+  `).get(today).n;
+
+  // Top 5 flagged items today with context
+  const top_flagged_today = db.prepare(`
+    SELECT e.name AS equipment_name,
+           c.name AS classroom_name,
+           ci.status,
+           ci.notes,
+           u.full_name AS technician
+    FROM checklist_items ci
+    JOIN checklist_submissions cs ON ci.submission_id = cs.id
+    JOIN equipment e ON ci.equipment_id = e.id
+    JOIN classrooms c ON cs.classroom_id = c.id
+    JOIN users u ON cs.technician_id = u.id
+    WHERE cs.submission_date = ? AND ci.status != 'working'
+    ORDER BY ci.status DESC, c.name
+    LIMIT 5
+  `).all(today);
+
+  // Top 5 most problematic equipment (last 30 days)
+  const top_problem_equipment = db.prepare(`
+    SELECT e.name AS equipment_name,
+           COUNT(*) AS issue_count
+    FROM checklist_items ci
+    JOIN checklist_submissions cs ON ci.submission_id = cs.id
+    JOIN equipment e ON ci.equipment_id = e.id
+    WHERE cs.submission_date >= ? AND ci.status != 'working'
+    GROUP BY e.id
+    ORDER BY issue_count DESC
+    LIMIT 5
+  `).all(thirtyDaysAgo);
+
+  // Recent audit log entries (last 5)
+  let recent_audit = [];
+  try {
+    recent_audit = db.prepare(`
+      SELECT al.action, al.details, al.created_at, u.full_name AS actor
+      FROM audit_log al
+      LEFT JOIN users u ON al.user_id = u.id
+      ORDER BY al.created_at DESC
+      LIMIT 5
+    `).all();
+  } catch (_) {
+    // audit_log table may not exist in all deployments
+  }
+
+  res.json({
+    classrooms_total,
+    equipment_total,
+    technicians_total,
+    classrooms_checked_today,
+    classrooms_unchecked,
+    flagged_today,
+    top_flagged_today,
+    top_problem_equipment,
+    recent_audit,
+  });
+});
+
 module.exports = router;

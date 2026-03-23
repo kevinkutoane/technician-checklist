@@ -835,3 +835,165 @@ tr:last-child td { border-bottom: none; }
   .stats-grid { grid-template-columns: 1fr; }
   .sidebar-brand span:not(.icon) { display: none; }
 }
+
+/* ─── Dark Mode ──────────────────────────────────────────────────────────── */
+[data-theme="dark"] {
+  --bg-gradient:   #0f172a;
+  --surface:       rgba(30, 41, 59, 0.95);
+  --surface-solid: #1e293b;
+
+  --gray-50:  #1e293b;
+  --gray-100: #263346;
+  --gray-200: #334155;
+  --gray-300: #475569;
+  --gray-400: #64748b;
+  --gray-500: #94a3b8;
+  --gray-600: #cbd5e1;
+  --gray-700: #e2e8f0;
+  --gray-800: #f1f5f9;
+  --gray-900: #f8fafc;
+
+  --text-color:  #f1f5f9;
+  --text-muted:  #94a3b8;
+  --border:      #334155;
+  --bg-hover:    #263346;
+
+  --shadow-sm: 0 1px 2px 0 rgba(0,0,0,0.4);
+  --shadow:    0 4px 6px -1px rgba(0,0,0,0.4), 0 2px 4px -2px rgba(0,0,0,0.3);
+  --shadow-md: 0 10px 15px -3px rgba(0,0,0,0.4), 0 4px 6px -4px rgba(0,0,0,0.3);
+  --shadow-lg: 0 20px 25px -5px rgba(0,0,0,0.4), 0 8px 10px -6px rgba(0,0,0,0.3);
+
+  --success-lt: rgba(16, 185, 129, 0.15);
+  --warning-lt: rgba(245, 158, 11, 0.15);
+  --danger-lt:  rgba(239, 68, 68, 0.15);
+}
+
+[data-theme="dark"] body {
+  background: var(--bg-gradient);
+  color: var(--text-color);
+}
+
+[data-theme="dark"] .card,
+[data-theme="dark"] .quick-action-card,
+[data-theme="dark"] .login-card {
+  background: var(--surface-solid);
+  border-color: var(--border);
+}
+
+[data-theme="dark"] .top-header {
+  background: var(--surface-solid);
+  border-bottom-color: var(--border);
+}
+
+[data-theme="dark"] input,
+[data-theme="dark"] select,
+[data-theme="dark"] textarea {
+  background: var(--gray-100);
+  color: var(--text-color);
+  border-color: var(--border);
+}
+
+[data-theme="dark"] input::placeholder { color: var(--text-muted); }
+
+[data-theme="dark"] table {
+  background: var(--surface-solid);
+  color: var(--text-color);
+}
+
+[data-theme="dark"] th {
+  background: var(--gray-100);
+  border-bottom-color: var(--border);
+  color: var(--text-muted);
+}
+
+[data-theme="dark"] td { border-bottom-color: var(--border); }
+
+[data-theme="dark"] tr:hover td { background: var(--bg-hover); }
+
+[data-theme="dark"] .tabs { border-bottom-color: var(--border); }
+[data-theme="dark"] .tab-btn { color: var(--text-muted); }
+[data-theme="dark"] .tab-btn:hover { color: var(--text-color); background: var(--bg-hover); }
+[data-theme="dark"] .tab-btn.active { color: var(--primary-lt); border-bottom-color: var(--primary-lt); }
+
+[data-theme="dark"] .stat-card { background: var(--surface-solid); border-color: var(--border); }
+[data-theme="dark"] .stat-value { color: var(--text-color); }
+[data-theme="dark"] .stat-label { color: var(--text-muted); }
+
+[data-theme="dark"] .classroom-tile { background: var(--gray-100); border-color: var(--border); }
+
+/* ─── New Overview / Settings UI ────────────────────────────────────────── */
+
+/* Overview grid — two-column layout for the overview cards */
+.overview-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1.5rem;
+}
+
+@media (max-width: 900px) {
+  .overview-grid { grid-template-columns: 1fr; }
+}
+
+/* Generic item row used in overview lists */
+.item-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.9rem;
+}
+.item-row:last-child { border-bottom: none; }
+
+/* Stat card warning / danger color variants for overview */
+.stat-card-warning { border-bottom: 4px solid var(--warning) !important; }
+.stat-card-danger  { border-bottom: 4px solid var(--danger)  !important; }
+
+/* Typography utilities */
+.text-muted   { color: var(--text-muted); }
+.text-success { color: var(--success); }
+.text-danger  { color: var(--danger); }
+.text-warning { color: var(--warning); }
+
+/* ─── Toggle Switch (dark mode toggle in Settings) ───────────────────────── */
+.theme-toggle-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  font-size: 0.95rem;
+  color: var(--text-color);
+}
+
+.toggle-switch {
+  position: relative;
+  display: inline-block;
+  width: 48px;
+  height: 26px;
+}
+
+.toggle-switch input { opacity: 0; width: 0; height: 0; }
+
+.toggle-slider {
+  position: absolute;
+  cursor: pointer;
+  inset: 0;
+  background: var(--gray-300);
+  border-radius: 26px;
+  transition: background 0.25s;
+}
+
+.toggle-slider::before {
+  content: '';
+  position: absolute;
+  height: 20px;
+  width: 20px;
+  left: 3px;
+  bottom: 3px;
+  background: #fff;
+  border-radius: 50%;
+  transition: transform 0.25s;
+}
+
+.toggle-switch input:checked + .toggle-slider { background: var(--primary); }
+.toggle-switch input:checked + .toggle-slider::before { transform: translateX(22px); }
+

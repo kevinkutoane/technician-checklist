@@ -13,6 +13,7 @@ const checklistRoutes = require('./routes/checklist');
 const dashboardRoutes = require('./routes/dashboard');
 const onboardingRoutes = require('./routes/onboarding');
 const qaRoutes = require('./routes/qa');
+const settingsRoutes = require('./routes/settings');
 const { requireAuth, requireAdmin } = require('./middleware/auth');
 const db = require('./db/database');
 
@@ -145,6 +146,10 @@ app.get('/admin', pageLimiter, requireAdmin, (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'pages', 'admin.html'));
 });
 
+app.get('/settings', pageLimiter, requireAuth, (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'pages', 'settings.html'));
+});
+
 // ── API Routes ────────────────────────────────────────────────────────────────
 
 app.use('/api/auth', authLimiter, authRoutes);
@@ -153,6 +158,7 @@ app.use('/api/checklists', apiLimiter, checklistRoutes);
 app.use('/api/dashboard', apiLimiter, dashboardRoutes);
 app.use('/api/onboarding', apiLimiter, onboardingRoutes);
 app.use('/api/qa', apiLimiter, qaRoutes);
+app.use('/api/settings', apiLimiter, settingsRoutes);
 
 // 404 handler
 app.use((req, res) => {

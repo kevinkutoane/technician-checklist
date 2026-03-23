@@ -15,7 +15,8 @@ function esc(str) {
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
 let currentUser = null;
@@ -96,12 +97,13 @@ document.getElementById('submitBtn').addEventListener('click', async () => {
   btn.textContent = 'Saving...';
 
   try {
-    await apiFetch('/api/qa', {
+    const result = await apiFetch('/api/qa', {
       method: 'POST',
       body: JSON.stringify(payload)
     });
     
-    successEl.textContent = 'QA Checklist saved successfully!';
+    const downloadId = Number(result.id);
+    successEl.innerHTML = `QA Checklist saved successfully! &nbsp;<a href="/api/qa/export?id=${downloadId}" target="_blank" class="btn btn-sm btn-secondary" style="vertical-align:middle">&#128196; Download PDF</a>`;
     successEl.classList.remove('hidden');
     
     document.getElementById('qaForm').reset();
@@ -111,7 +113,6 @@ document.getElementById('submitBtn').addEventListener('click', async () => {
   } catch (err) {
     errEl.textContent = err.message || 'Failed to save QA Checklist.';
     errEl.classList.remove('hidden');
-    window.scrollTo(0, 0);
   } finally {
     btn.disabled = false;
     btn.textContent = 'Submit QA Checklist';
@@ -129,10 +130,13 @@ async function loadHistory() {
     }
     
     container.innerHTML = list.map(item => `
-      <div class="history-item" style="padding: 10px; border-bottom: 1px solid var(--border);">
-        <strong>${esc(item.username)}</strong> 
-        <br/><small style="color: var(--text-muted);">SN: ${esc(item.machine_serial || 'N/A')} | Ref: ${esc(item.call_ref || 'N/A')}</small>
-        <br/><small style="color: var(--text-muted);">QAed by ${esc(item.technician_name)} on ${item.submission_date}</small>
+      <div class="history-item" style="padding: 10px; border-bottom: 1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+        <div>
+          <strong>${esc(item.username)}</strong>
+          <br/><small style="color: var(--text-muted);">SN: ${esc(item.machine_serial || 'N/A')} | Ref: ${esc(item.call_ref || 'N/A')}</small>
+          <br/><small style="color: var(--text-muted);">QAed by ${esc(item.technician_name)} on ${item.submission_date}</small>
+        </div>
+        <a href="/api/qa/export?id=${item.id}" target="_blank" class="btn btn-secondary btn-sm" title="Download PDF">&#128196;</a>
       </div>
     `).join('');
   } catch (err) {

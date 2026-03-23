@@ -3,6 +3,11 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#4f46e5" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="apple-touch-icon" href="/icons/icon.svg" />
   <title>Checklist – Technician Checklist</title>
   <link rel="stylesheet" href="/css/styles.css" />
 </head>
@@ -64,7 +69,6 @@
     </div>
 
     <div id="submitError" class="alert alert-danger hidden"></div>
-    <div id="submitSuccess" class="alert alert-success hidden"></div>
 
     <div class="flex gap-2 mt-3">
       <button class="btn btn-secondary" id="cancelBtn">Cancel</button>
@@ -74,6 +78,8 @@
     </div>
   </div>
 
+  <div id="submitSuccess" class="alert alert-success hidden"></div>
+
   <div id="loadingSpinner" class="hidden">
     <div class="spinner"></div>
   </div>
@@ -82,5 +88,6 @@
 </div>
 
 <script src="/js/checklist.js"></script>
+<script>if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js').catch(()=>{});</script>
 </body>
 </html>

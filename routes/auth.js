@@ -26,12 +26,19 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-    req.session.user = {
-      id: user.id,
-      username: user.username,
-      full_name: user.full_name,
-      role: user.role,
-    };
+    // Regenerate session to prevent session fixation attacks
+    await new Promise((resolve, reject) => {
+      req.session.regenerate((err) => {
+        if (err) return reject(err);
+        req.session.user = {
+          id: user.id,
+          username: user.username,
+          full_name: user.full_name,
+          role: user.role,
+        };
+        resolve();
+      });
+    });
 
     return res.json({
       id: user.id,
@@ -46,7 +53,8 @@ router.post('/login', async (req, res) => {
 
 // POST /api/auth/logout
 router.post('/logout', (req, res) => {
-  req.session.destroy(() => {
+  req.session.destroy((err) => {
+    if (err) console.error('Session destroy error:', err);
     res.json({ message: 'Logged out' });
   });
 });

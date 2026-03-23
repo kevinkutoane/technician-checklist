@@ -15,7 +15,8 @@ function esc(str) {
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
 function statusBadge(status) {
@@ -194,10 +195,13 @@ async function loadAssetAgreements() {
       return;
     }
     el.innerHTML = list.map(item => `
-      <div style="padding: 10px; border-bottom: 1px solid var(--border);">
-        <strong>${esc(item.employee_name)}</strong> 
-        <br/><small style="color: var(--text-muted);">SN: ${esc(item.laptop_serial_number || 'N/A')}</small>
-        <br/><small style="color: var(--text-muted);">Issued by ${esc(item.technician_name)} on ${item.submission_date}</small>
+      <div style="padding: 10px; border-bottom: 1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+        <div>
+          <strong>${esc(item.employee_name)}</strong>
+          <br/><small style="color: var(--text-muted);">SN: ${esc(item.laptop_serial_number || 'N/A')}</small>
+          <br/><small style="color: var(--text-muted);">Issued by ${esc(item.technician_name)} on ${item.submission_date}</small>
+        </div>
+        <a href="/api/onboarding/export?id=${item.id}" target="_blank" class="btn btn-secondary btn-sm" title="Download PDF">&#128196;</a>
       </div>
     `).join('');
   } catch (err) {
@@ -215,12 +219,121 @@ async function loadQAChecklists() {
       return;
     }
     el.innerHTML = list.map(item => `
-      <div style="padding: 10px; border-bottom: 1px solid var(--border);">
-        <strong>${esc(item.username)}</strong> 
-        <br/><small style="color: var(--text-muted);">SN: ${esc(item.machine_serial || 'N/A')} | Ref: ${esc(item.call_ref || 'N/A')}</small>
-        <br/><small style="color: var(--text-muted);">QAed by ${esc(item.technician_name)} on ${item.submission_date}</small>
+      <div style="padding: 10px; border-bottom: 1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+        <div>
+          <strong>${esc(item.username)}</strong>
+          <br/><small style="color: var(--text-muted);">SN: ${esc(item.machine_serial || 'N/A')} | Ref: ${esc(item.call_ref || 'N/A')}</small>
+          <br/><small style="color: var(--text-muted);">QAed by ${esc(item.technician_name)} on ${item.submission_date}</small>
+        </div>
+        <a href="/api/qa/export?id=${item.id}" target="_blank" class="btn btn-secondary btn-sm" title="Download PDF">&#128196;</a>
       </div>
     `).join('');
+  } catch (err) {
+    el.innerHTML = `<div class="alert alert-danger">${err.message}</div>`;
+  }
+}
+
+// ─── Today's Classroom Completion Progress ────────────────────────────────────
+async function loadTodayProgress() {
+  const el = document.getElementById('todayProgressGrid');
+  if (!el) return;
+  try {
+    const list = await apiFetch('/api/dashboard/today-progress');
+    if (!list.length) {
+      el.innerHTML = '<p style="color:var(--text-muted);font-size:0.875rem">No classrooms configured.</p>';
+      return;
+    }
+    el.innerHTML = list.map((c) => {
+      if (currentUser && currentUser.role === 'admin') {
+        const done  = c.total_today > 0;
+        const color = done ? '#10b981' : '#9ca3af';
+        const bg    = done ? '#d1fae5' : '#f3f4f6';
+        return `<div style="background:${bg};border-radius:8px;padding:8px 10px;font-size:0.8rem;text-align:center;min-width:80px;">
+          <div style="font-weight:600;color:${color}">${esc(c.name)}</div>
+          <div style="color:${color};font-size:0.75rem">${c.total_today} check${c.total_today !== 1 ? 's' : ''}</div>
+        </div>`;
+      } else {
+        const color = c.submitted_by_me ? '#10b981' : '#9ca3af';
+        const bg    = c.submitted_by_me ? '#d1fae5' : '#f3f4f6';
+        const icon  = c.submitted_by_me ? '✅' : '○';
+        return `<div style="background:${bg};border-radius:8px;padding:8px 10px;font-size:0.8rem;text-align:center;min-width:80px;">
+          <div style="font-size:1rem">${icon}</div>
+          <div style="color:${color};font-weight:600">${esc(c.name)}</div>
+        </div>`;
+      }
+    }).join('');
+  } catch (err) {
+    el.innerHTML = `<div class="alert alert-danger">${err.message}</div>`;
+  }
+}
+
+// ─── Equipment Status Trends (Admin only) ─────────────────────────────────────
+let trendsChartInst = null;
+const TREND_STATUS_MAP = { working: 1, needs_repair: 0.5, not_working: 0 };
+const TREND_COLORS = [
+  '#4f46e5','#10b981','#f59e0b','#ef4444','#8b5cf6','#06b6d4',
+  '#f97316','#ec4899','#84cc16','#14b8a6',
+];
+
+async function loadEquipmentTrends() {
+  const el = document.getElementById('trendsContainer');
+  if (!el) return;
+  const crSel = document.getElementById('trendsClassroom');
+  const classroomId = crSel ? crSel.value : '';
+  if (!classroomId) {
+    el.innerHTML = '<div class="empty-state"><div class="empty-icon">📈</div><p>Select a classroom above to view trends</p></div>';
+    return;
+  }
+  el.innerHTML = '<div class="spinner"></div>';
+  try {
+    const data = await apiFetch(`/api/dashboard/equipment-trends?classroom_id=${classroomId}&days=14`);
+    if (!data.datasets || !data.datasets.length) {
+      el.innerHTML = '<div class="empty-state"><p>No equipment data for this classroom.</p></div>';
+      return;
+    }
+    el.innerHTML = '<canvas id="trendsChart" style="height:250px"></canvas>';
+    const ctx = document.getElementById('trendsChart').getContext('2d');
+    if (trendsChartInst) trendsChartInst.destroy();
+    trendsChartInst = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: data.labels,
+        datasets: data.datasets.map((ds, i) => ({
+          label: ds.name,
+          data: ds.data.map((s) => s === null ? null : TREND_STATUS_MAP[s] ?? null),
+          borderColor: TREND_COLORS[i % TREND_COLORS.length],
+          backgroundColor: 'transparent',
+          tension: 0.3,
+          spanGaps: true,
+          pointRadius: 4,
+        })),
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          y: {
+            min: -0.1,
+            max: 1.1,
+            ticks: {
+              callback: (v) => v === 1 ? '✅ Working' : v === 0.5 ? '⚠️ Repair' : v === 0 ? '❌ Down' : '',
+              stepSize: 0.5,
+            },
+          },
+        },
+        plugins: {
+          tooltip: {
+            callbacks: {
+              label: (ctx) => {
+                const v = ctx.raw;
+                const label = v === 1 ? 'Working' : v === 0.5 ? 'Needs Repair' : v === 0 ? 'Not Working' : 'No data';
+                return `${ctx.dataset.label}: ${label}`;
+              },
+            },
+          },
+        },
+      },
+    });
   } catch (err) {
     el.innerHTML = `<div class="alert alert-danger">${err.message}</div>`;
   }
@@ -448,6 +561,7 @@ document.getElementById('applyFiltersBtn').addEventListener('click', async () =>
   await loadQAChecklists();
   const sd = document.getElementById('filterStartDate').value;
   if (sd) await loadIssues(sd);
+  await loadAdminCharts();
 });
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
@@ -459,6 +573,7 @@ document.getElementById('applyFiltersBtn').addEventListener('click', async () =>
 
   await Promise.all([
     loadStats(),
+    loadTodayProgress(),
     loadIssues(),
     loadSubmissions(),
     loadAssetAgreements(),
@@ -466,4 +581,18 @@ document.getElementById('applyFiltersBtn').addEventListener('click', async () =>
     loadAdminCharts(),
     populateFilterSelects(),
   ]);
+
+  // Populate classroom selector for trends (admin only)
+  if (currentUser && currentUser.role === 'admin') {
+    const crSel = document.getElementById('trendsClassroom');
+    if (crSel) {
+      try {
+        const classrooms = await apiFetch('/api/classrooms');
+        crSel.innerHTML = '<option value="">-- Select classroom --</option>' +
+          classrooms.map((c) => `<option value="${c.id}">${esc(c.name)}</option>`).join('');
+        crSel.addEventListener('change', loadEquipmentTrends);
+      } catch(_) {}
+    }
+    loadEquipmentTrends();
+  }
 })();

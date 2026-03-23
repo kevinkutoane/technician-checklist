@@ -3,7 +3,7 @@
 const Database = require('better-sqlite3');
 const path = require('path');
 
-const DB_PATH = path.join(__dirname, '..', 'checklist.db');
+const DB_PATH = process.env.TEST_DB || path.join(__dirname, '..', 'checklist.db');
 
 const db = new Database(DB_PATH);
 
@@ -122,6 +122,41 @@ db.exec(`
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (technician_id) REFERENCES users(id)
   );
+`);
+
+// Audit log table
+db.exec(`
+  CREATE TABLE IF NOT EXISTS audit_log (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER,
+    action TEXT NOT NULL,
+    target_type TEXT DEFAULT '',
+    target_id INTEGER,
+    details TEXT DEFAULT '',
+    ip_address TEXT DEFAULT '',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+`);
+
+// Add signature_data column to asset_agreements if it doesn't exist yet
+try {
+  db.exec(`ALTER TABLE asset_agreements ADD COLUMN signature_data TEXT DEFAULT ''`);
+} catch (_) {
+  // Column already exists — safe to ignore
+}
+
+// Performance indexes — keep queries fast as data grows
+db.exec(`
+  CREATE INDEX IF NOT EXISTS idx_cs_date       ON checklist_submissions(submission_date);
+  CREATE INDEX IF NOT EXISTS idx_cs_tech       ON checklist_submissions(technician_id);
+  CREATE INDEX IF NOT EXISTS idx_cs_classroom  ON checklist_submissions(classroom_id);
+  CREATE INDEX IF NOT EXISTS idx_ci_submission ON checklist_items(submission_id);
+  CREATE INDEX IF NOT EXISTS idx_aa_date       ON asset_agreements(submission_date);
+  CREATE INDEX IF NOT EXISTS idx_aa_tech       ON asset_agreements(technician_id);
+  CREATE INDEX IF NOT EXISTS idx_qa_date       ON qa_submissions(submission_date);
+  CREATE INDEX IF NOT EXISTS idx_qa_tech       ON qa_submissions(technician_id);
+  CREATE INDEX IF NOT EXISTS idx_al_user       ON audit_log(user_id);
+  CREATE INDEX IF NOT EXISTS idx_al_created    ON audit_log(created_at);
 `);
 
 module.exports = db;

@@ -3,6 +3,11 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#4f46e5" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="apple-touch-icon" href="/icons/icon.svg" />
   <title>Admin – Technician Checklist</title>
   <link rel="stylesheet" href="/css/styles.css" />
 </head>
@@ -41,6 +46,7 @@
     <button class="tab-btn" data-tab="submissions">Checklist Submissions</button>
     <button class="tab-btn" data-tab="qa">QA Submissions</button>
     <button class="tab-btn" data-tab="onboarding">Asset Agreements</button>
+    <button class="tab-btn" data-tab="auditlog">Audit Log</button>
   </div>
 
   <!-- ─── Classrooms Tab ─────────────────────────────────────────────── -->
@@ -166,6 +172,17 @@
       <div id="onboardingList"><div class="empty-state"><div class="empty-icon">💻</div><p>Click Load to view asset agreements</p></div></div>
     </div>
   </div>
+
+  <!-- ─── Audit Log Tab ──────────────────────────────────────────────────── -->
+  <div id="tab-auditlog" class="tab-content">
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Audit Log</span>
+        <button class="btn btn-primary btn-sm" id="loadAuditLogBtn">Load / Refresh</button>
+      </div>
+      <div id="auditLogList"><div class="empty-state"><div class="empty-icon">📋</div><p>Click Load to view recent audit entries</p></div></div>
+    </div>
+  </div>
 </div>
 
 <!-- ─── Modals ──────────────────────────────────────────────────────────── -->
@@ -248,5 +265,6 @@
 </div>
 
 <script src="/js/admin.js"></script>
+<script>if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js').catch(()=>{});</script>
 </body>
 </html>

@@ -4,6 +4,11 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#4f46e5" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="apple-touch-icon" href="/icons/icon.svg" />
   <title>Dashboard – Technician Checklist</title>
   <link rel="stylesheet" href="/css/styles.css" />
 </head>
@@ -34,6 +39,16 @@
 
   <div class="container">
     <h1 class="page-title">Dashboard</h1>
+
+    <!-- Today's Classroom Progress -->
+    <div class="card mb-4">
+      <div class="card-header">
+        <span class="card-title">Today's Classroom Coverage</span>
+      </div>
+      <div id="todayProgressGrid" style="display:flex;flex-wrap:wrap;gap:8px;padding:12px;">
+        <div class="spinner"></div>
+      </div>
+    </div>
 
     <!-- Technician Quick Actions -->
     <div id="techQuickActions" class="mb-5 hidden">
@@ -90,6 +105,18 @@
             <div class="card-header"><span class="card-title">Technician Performance (Submissions WTD)</span></div>
             <div style="height: 250px;"><canvas id="techActivityChart"></canvas></div>
           </div>
+        </div>
+      </div>
+      <!-- Equipment Status Trends -->
+      <div class="card mb-4">
+        <div class="card-header">
+          <span class="card-title">Equipment Status Trends (Last 14 Days)</span>
+          <select id="trendsClassroom" class="form-control" style="max-width:220px;font-size:0.875rem">
+            <option value="">-- Select classroom --</option>
+          </select>
+        </div>
+        <div id="trendsContainer" style="height:270px;padding:8px;">
+          <div class="empty-state"><div class="empty-icon">📈</div><p>Select a classroom above to view trends</p></div>
         </div>
       </div>
     </div>
@@ -205,8 +232,9 @@
 </div>
 </div>
 
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
   <script src="/js/dashboard.js"></script>
+<script>if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js').catch(()=>{});</script>
 </body>
 
 </html>

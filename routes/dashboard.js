@@ -2,11 +2,91 @@
 
 const express = require('express');
 const db = require('../db/database');
-const { requireAuth } = require('../middleware/auth');
+const { requireAuth, requireAdmin } = require('../middleware/auth');
 
 const router = express.Router();
 
 router.use(requireAuth);
+
+// GET /api/dashboard/today-progress
+// Returns every classroom with whether the current user (or all users for admin)
+// has submitted a checklist today.
+router.get('/today-progress', (req, res) => {
+  const today = new Date().toISOString().slice(0, 10);
+  const isAdmin = req.session.user.role === 'admin';
+  const userId  = req.session.user.id;
+
+  const classrooms = db.prepare('SELECT id, name FROM classrooms ORDER BY name').all();
+
+  const result = classrooms.map((c) => {
+    // How many distinct technicians have submitted for this classroom today?
+    const totalToday = db.prepare(`
+      SELECT COUNT(*) AS n FROM checklist_submissions
+      WHERE classroom_id = ? AND submission_date = ?
+    `).get(c.id, today).n;
+
+    // Has the current user submitted?
+    const submittedByMe = db.prepare(`
+      SELECT 1 FROM checklist_submissions
+      WHERE classroom_id = ? AND submission_date = ? AND technician_id = ?
+    `).get(c.id, today, userId) ? true : false;
+
+    return { id: c.id, name: c.name, submitted_by_me: submittedByMe, total_today: totalToday };
+  });
+
+  res.json(result);
+});
+
+// GET /api/dashboard/equipment-trends?classroom_id=X&days=14
+// Returns daily status counts for every piece of equipment in a classroom,
+// for the last N days (default 14, max 90).
+router.get('/equipment-trends', requireAdmin, (req, res) => {
+  const classroomId = parseInt(req.query.classroom_id, 10);
+  const days = Math.min(parseInt(req.query.days || '14', 10), 90);
+
+  if (!classroomId) {
+    return res.status(400).json({ error: 'classroom_id is required' });
+  }
+
+  const classroom = db.prepare('SELECT id, name FROM classrooms WHERE id = ?').get(classroomId);
+  if (!classroom) return res.status(404).json({ error: 'Classroom not found' });
+
+  const equipment = db.prepare('SELECT id, name FROM equipment WHERE classroom_id = ? ORDER BY name').all(classroomId);
+
+  // Build date range
+  const dateLabels = [];
+  for (let i = days - 1; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    dateLabels.push(d.toISOString().slice(0, 10));
+  }
+
+  const cutoff = dateLabels[0];
+
+  // Fetch all item results in one query
+  const rows = db.prepare(`
+    SELECT ci.equipment_id, cs.submission_date, ci.status
+    FROM checklist_items ci
+    JOIN checklist_submissions cs ON ci.submission_id = cs.id
+    WHERE cs.classroom_id = ? AND cs.submission_date >= ?
+    ORDER BY cs.submission_date
+  `).all(classroomId, cutoff);
+
+  // Build a map: equipment_id -> date -> last status
+  const statusMap = {};
+  for (const row of rows) {
+    if (!statusMap[row.equipment_id]) statusMap[row.equipment_id] = {};
+    statusMap[row.equipment_id][row.submission_date] = row.status;
+  }
+
+  const datasets = equipment.map((eq) => ({
+    id:   eq.id,
+    name: eq.name,
+    data: dateLabels.map((d) => statusMap[eq.id]?.[d] || null),
+  }));
+
+  res.json({ classroom: classroom.name, labels: dateLabels, datasets });
+});
 
 // GET /api/dashboard/summary
 router.get('/summary', (req, res) => {
@@ -86,8 +166,8 @@ router.get('/issues', (req, res) => {
   res.json(issues);
 });
 
-// GET /api/dashboard/charts
-router.get('/charts', (req, res) => {
+// GET /api/dashboard/charts — admin only (exposes per-technician performance data)
+router.get('/charts', requireAdmin, (req, res) => {
   // ── 1. Last 7 days: submissions AND flagged items per day ──────────────────
   const dayLabels = [];
   const checksData = [];

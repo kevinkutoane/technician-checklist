@@ -15,7 +15,8 @@ function esc(str) {
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
 let currentUser = null;
@@ -111,6 +112,23 @@ async function loadChecklistData() {
     renderEquipmentList(selectedEquipment);
     document.getElementById('generalNotes').value = '';
     checklistForm.classList.remove('hidden');
+
+    // Pre-fill notes from most recent previous submission
+    try {
+      const prevNotes = await apiFetch(`/api/checklists/latest-notes?classroom_id=${classroomId}`);
+      if (prevNotes.length > 0) {
+        const noteMap = Object.fromEntries(prevNotes.map((n) => [n.equipment_id, n.notes]));
+        for (const eq of selectedEquipment) {
+          const prev = noteMap[eq.id];
+          if (prev) {
+            const noteInput = document.getElementById(`notes-${eq.id}`);
+            if (noteInput) noteInput.value = prev;
+          }
+        }
+      }
+    } catch (_) {
+      // Pre-fill is best-effort — ignore errors
+    }
   } catch (err) {
     alert(`Error: ${err.message}`);
   } finally {

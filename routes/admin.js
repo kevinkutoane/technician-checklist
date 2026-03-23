@@ -4,6 +4,7 @@ const express = require('express');
 const db = require('../db/database');
 const bcrypt = require('bcryptjs');
 const { requireAuth, requireAdmin } = require('../middleware/auth');
+const { logAudit } = require('../middleware/audit');
 
 const router = express.Router();
 
@@ -127,6 +128,9 @@ router.post('/technicians', requireAdmin, async (req, res) => {
   if (!username || !username.trim() || !password || !full_name || !full_name.trim()) {
     return res.status(400).json({ error: 'username, password, and full_name are required' });
   }
+  if (password.length < 6) {
+    return res.status(400).json({ error: 'Password must be at least 6 characters' });
+  }
   try {
     const hash = await bcrypt.hash(password, 10);
     const stmt = db.prepare(
@@ -154,24 +158,24 @@ router.put('/technicians/:id', requireAdmin, async (req, res) => {
   }
 
   try {
-    let stmt;
+    let result;
     if (password && password.trim() !== '') {
+      if (password.length < 6) {
+        return res.status(400).json({ error: 'Password must be at least 6 characters' });
+      }
       const hash = await bcrypt.hash(password, 10);
-      stmt = db.prepare('UPDATE users SET username = ?, full_name = ?, password = ? WHERE id = ? AND role = \'technician\'');
-      stmt.run(username.trim(), full_name.trim(), hash, id);
+      result = db.prepare('UPDATE users SET username = ?, full_name = ?, password = ? WHERE id = ? AND role = \'technician\'').run(username.trim(), full_name.trim(), hash, id);
     } else {
-      stmt = db.prepare('UPDATE users SET username = ?, full_name = ? WHERE id = ? AND role = \'technician\'');
-      stmt.run(username.trim(), full_name.trim(), id);
+      result = db.prepare('UPDATE users SET username = ?, full_name = ? WHERE id = ? AND role = \'technician\'').run(username.trim(), full_name.trim(), id);
+    }
+
+    if (result.changes === 0) {
+      return res.status(404).json({ error: 'Technician not found' });
     }
 
     const user = db
       .prepare('SELECT id, username, full_name, role, created_at FROM users WHERE id = ?')
       .get(id);
-    
-    if (!user) {
-       return res.status(404).json({ error: 'Technician not found' });
-    }
-    
     res.json(user);
   } catch (err) {
     if (err.message && err.message.includes('UNIQUE constraint failed')) {
@@ -184,12 +188,30 @@ router.put('/technicians/:id', requireAdmin, async (req, res) => {
 // DELETE /api/technicians/:id
 router.delete('/technicians/:id', requireAdmin, (req, res) => {
   const { id } = req.params;
-  const user = db.prepare("SELECT id FROM users WHERE id = ? AND role = 'technician'").get(id);
+  const user = db.prepare("SELECT id, full_name FROM users WHERE id = ? AND role = 'technician'").get(id);
   if (!user) {
     return res.status(404).json({ error: 'Technician not found' });
   }
   db.prepare('DELETE FROM users WHERE id = ?').run(id);
+  logAudit(req, 'technician.delete', 'user', Number(id), `Removed ${user.full_name}`);
   res.json({ message: 'Technician deleted' });
+});
+
+// ── Audit Log ─────────────────────────────────────────────────────────────────
+
+// GET /api/audit-log — admin only
+router.get('/audit-log', requireAdmin, (req, res) => {
+  const limit = Math.min(parseInt(req.query.limit || '100', 10), 500);
+  const entries = db.prepare(`
+    SELECT al.id, al.action, al.target_type, al.target_id, al.details,
+           al.ip_address, al.created_at,
+           u.full_name AS user_name, u.username
+    FROM audit_log al
+    LEFT JOIN users u ON al.user_id = u.id
+    ORDER BY al.created_at DESC
+    LIMIT ?
+  `).all(limit);
+  res.json(entries);
 });
 
 module.exports = router;

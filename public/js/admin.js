@@ -534,11 +534,12 @@ async function loadQASubmissions() {
   const sd = document.getElementById('qaStartDate').value;
   const ed = document.getElementById('qaEndDate').value;
   const te = document.getElementById('qaTechFilter').value;
+  const params = new URLSearchParams({ limit: 200 });
+  if (sd) params.set('start_date', sd);
+  if (ed) params.set('end_date', ed);
+  if (te) params.set('technician_id', te);
   try {
-    let list = await apiFetch('/api/qa?limit=500');
-    if (sd) list = list.filter(i => i.submission_date >= sd);
-    if (ed) list = list.filter(i => i.submission_date <= ed);
-    if (te) list = list.filter(i => String(i.technician_id) === te);
+    const list = await apiFetch(`/api/qa?${params}`);
     if (!list.length) {
       el.innerHTML = '<div class="empty-state"><div class="empty-icon">🔍</div><p>No QA submissions found</p></div>';
       return;
@@ -592,11 +593,12 @@ async function loadOnboardingSubmissions() {
   const sd = document.getElementById('onboardingStartDate').value;
   const ed = document.getElementById('onboardingEndDate').value;
   const te = document.getElementById('onboardingTechFilter').value;
+  const params = new URLSearchParams({ limit: 200 });
+  if (sd) params.set('start_date', sd);
+  if (ed) params.set('end_date', ed);
+  if (te) params.set('technician_id', te);
   try {
-    let list = await apiFetch('/api/onboarding?limit=500');
-    if (sd) list = list.filter(i => i.submission_date >= sd);
-    if (ed) list = list.filter(i => i.submission_date <= ed);
-    if (te) list = list.filter(i => String(i.technician_id) === te);
+    const list = await apiFetch(`/api/onboarding?${params}`);
     if (!list.length) {
       el.innerHTML = '<div class="empty-state"><div class="empty-icon">💻</div><p>No asset agreements found</p></div>';
       return;
@@ -630,6 +632,42 @@ async function loadOnboardingSubmissions() {
 }
 
 // ─── Init ────────────────────────────────────────────────────────────────────
+// ─── Audit Log ────────────────────────────────────────────────────────────────
+document.getElementById('loadAuditLogBtn').addEventListener('click', loadAuditLog);
+
+async function loadAuditLog() {
+  const el = document.getElementById('auditLogList');
+  el.innerHTML = '<div class="spinner"></div>';
+  try {
+    const entries = await apiFetch('/api/audit-log?limit=200');
+    if (!entries.length) {
+      el.innerHTML = '<div class="empty-state"><div class="empty-icon">📋</div><p>No audit entries yet</p></div>';
+      return;
+    }
+    el.innerHTML = `
+      <div class="table-wrapper">
+        <table>
+          <thead><tr><th>Time</th><th>User</th><th>Action</th><th>Target</th><th>Details</th><th>IP</th></tr></thead>
+          <tbody>
+            ${entries.map((e) => `
+              <tr>
+                <td style="white-space:nowrap;font-size:0.8rem">${new Date(e.created_at).toLocaleString()}</td>
+                <td>${esc(e.user_name || '—')}</td>
+                <td><code>${esc(e.action)}</code></td>
+                <td style="font-size:0.8rem">${esc(e.target_type || '')}${e.target_id ? ` #${e.target_id}` : ''}</td>
+                <td style="font-size:0.8rem">${esc(e.details || '—')}</td>
+                <td style="font-size:0.8rem">${esc(e.ip_address || '—')}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+    `;
+  } catch (err) {
+    el.innerHTML = `<div class="alert alert-danger">${err.message}</div>`;
+  }
+}
+
 (async function init() {
   await initNav();
   await Promise.all([loadClassrooms(), loadTechnicians()]);

@@ -3,6 +3,11 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#4f46e5" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="apple-touch-icon" href="/icons/icon.svg" />
   <title>Asset Agreement – Technician Checklist</title>
   <link rel="stylesheet" href="/css/styles.css" />
 </head>
@@ -106,6 +111,16 @@
             </small>
           </div>
 
+          <!-- Signature Pad -->
+          <div class="form-group mt-4">
+            <label class="form-label">Employee Signature</label>
+            <div style="border: 1px solid var(--border); border-radius: 8px; background: #fafafa; position: relative;">
+              <canvas id="signatureCanvas" style="width:100%; height:120px; display:block; touch-action:none; cursor:crosshair;"></canvas>
+            </div>
+            <button type="button" class="btn btn-secondary btn-sm mt-2" id="clearSignatureBtn">Clear Signature</button>
+            <small class="form-text" style="color:var(--text-muted); display:block; margin-top:4px;">Sign in the box above using your mouse or finger</small>
+          </div>
+
           <button type="button" class="btn btn-primary btn-block mt-4" id="submitBtn">Save Asset Agreement</button>
         </form>
       </div>
@@ -129,6 +144,8 @@
 </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.7/dist/signature_pad.umd.min.js"></script>
 <script src="/js/onboarding.js"></script>
+<script>if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js').catch(()=>{});</script>
 </body>
 </html>

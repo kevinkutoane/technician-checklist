@@ -3,18 +3,52 @@
 const express = require('express');
 const db = require('../db/database');
 const { requireAuth } = require('../middleware/auth');
+const { logAudit } = require('../middleware/audit');
+const { sendFlagAlert } = require('../utils/mailer');
 
 const router = express.Router();
 
 router.use(requireAuth);
 
+// GET /api/checklists/latest-notes?classroom_id=X
+// Returns per-equipment notes from the most recent submission for this classroom
+// by the current technician. Used to pre-fill the form.
+router.get('/latest-notes', (req, res) => {
+  const classroomId   = parseInt(req.query.classroom_id, 10);
+  const technicianId  = req.session.user.id;
+
+  if (!classroomId) return res.status(400).json({ error: 'classroom_id is required' });
+
+  // Find the most recent submission (excluding today so we don't overwrite what's just been done)
+  const today = new Date().toISOString().slice(0, 10);
+  const submission = db.prepare(`
+    SELECT id FROM checklist_submissions
+    WHERE classroom_id = ? AND technician_id = ? AND submission_date < ?
+    ORDER BY submission_date DESC, created_at DESC
+    LIMIT 1
+  `).get(classroomId, technicianId, today);
+
+  if (!submission) return res.json([]);
+
+  const items = db.prepare(`
+    SELECT ci.equipment_id, ci.notes
+    FROM checklist_items ci
+    WHERE ci.submission_id = ? AND ci.notes != ''
+  `).all(submission.id);
+
+  res.json(items);
+});
+
 // POST /api/checklists
-router.post('/', (req, res) => {
+router.post('/', async (req, res) => {
   const { classroom_id, submission_date, general_notes, items } = req.body;
   const technician_id = req.session.user.id;
 
   if (!classroom_id || !submission_date) {
     return res.status(400).json({ error: 'classroom_id and submission_date are required' });
+  }
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(submission_date)) {
+    return res.status(400).json({ error: 'submission_date must be in YYYY-MM-DD format' });
   }
   if (!Array.isArray(items) || items.length === 0) {
     return res.status(400).json({ error: 'At least one checklist item is required' });
@@ -24,6 +58,15 @@ router.post('/', (req, res) => {
   for (const item of items) {
     if (!item.equipment_id || !validStatuses.has(item.status)) {
       return res.status(400).json({ error: 'Each item needs equipment_id and a valid status' });
+    }
+  }
+
+  // Validate all equipment IDs belong to the specified classroom
+  const classroomEquip = db.prepare('SELECT id FROM equipment WHERE classroom_id = ?').all(classroom_id);
+  const validEquipIds = new Set(classroomEquip.map((e) => e.id));
+  for (const item of items) {
+    if (!validEquipIds.has(Number(item.equipment_id))) {
+      return res.status(400).json({ error: `Equipment ID ${item.equipment_id} does not belong to this classroom` });
     }
   }
 
@@ -73,6 +116,30 @@ router.post('/', (req, res) => {
     const full = db
       .prepare('SELECT * FROM checklist_submissions WHERE id = ?')
       .get(submission.id);
+
+    // Audit log
+    logAudit(req, 'checklist.submit', 'checklist_submission', submission.id,
+      `Classroom ${classroom_id} on ${submission_date}`);
+
+    // Email alert for flagged items
+    const flagged = items.filter((i) => i.status === 'not_working' || i.status === 'needs_repair');
+    if (flagged.length > 0) {
+      const equipNames = db.prepare(`
+        SELECT id, name FROM equipment WHERE id IN (${flagged.map(() => '?').join(',')})
+      `).all(...flagged.map((i) => i.equipment_id));
+      const nameMap = Object.fromEntries(equipNames.map((e) => [e.id, e.name]));
+
+      const classroom = db.prepare('SELECT name FROM classrooms WHERE id = ?').get(classroom_id);
+      const tech      = db.prepare('SELECT full_name FROM users WHERE id = ?').get(technician_id);
+
+      await sendFlagAlert(
+        flagged.map((i) => ({ equipment_name: nameMap[i.equipment_id] || `#${i.equipment_id}`, status: i.status, notes: i.notes })),
+        classroom ? classroom.name : String(classroom_id),
+        tech ? tech.full_name : String(technician_id),
+        submission_date
+      );
+    }
+
     res.status(201).json(full);
   } catch (err) {
     console.error('Checklist submission error:', err);
@@ -153,6 +220,11 @@ router.get('/:id', (req, res) => {
 
   if (!submission) {
     return res.status(404).json({ error: 'Submission not found' });
+  }
+
+  // Non-admins can only view their own submissions
+  if (req.session.user.role !== 'admin' && submission.technician_id !== Number(req.session.user.id)) {
+    return res.status(403).json({ error: 'Forbidden' });
   }
 
   const items = db

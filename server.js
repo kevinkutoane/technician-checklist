@@ -2,6 +2,7 @@
 
 const express = require('express');
 const session = require('express-session');
+const BetterSqlite3Store = require('better-sqlite3-session-store')(session);
 const rateLimit = require('express-rate-limit');
 const helmet = require('helmet');
 const path = require('path');
@@ -13,13 +14,29 @@ const dashboardRoutes = require('./routes/dashboard');
 const onboardingRoutes = require('./routes/onboarding');
 const qaRoutes = require('./routes/qa');
 const { requireAuth, requireAdmin } = require('./middleware/auth');
+const db = require('./db/database');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Start scheduled backup (runs daily at 02:00)
+require('./utils/backup');
+
 // Security Headers
 app.use(helmet({
-  contentSecurityPolicy: false, // Ensure inline styles/scripts or dynamically loaded fonts still work if needed
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc:  ["'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net"],
+      styleSrc:   ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+      fontSrc:    ["'self'", "https://fonts.gstatic.com"],
+      imgSrc:     ["'self'", "data:"],
+      connectSrc: ["'self'"],
+      objectSrc:  ["'none'"],
+      baseUri:    ["'self'"],
+      formAction: ["'self'"],
+    },
+  },
 }));
 
 // Body parsing
@@ -33,6 +50,7 @@ app.use(
     secret: sessionSecret,
     resave: false,
     saveUninitialized: false,
+    store: new BetterSqlite3Store({ client: db }),
     cookie: {
       secure: process.env.NODE_ENV === 'production',
       httpOnly: true,
@@ -60,9 +78,13 @@ app.use('/api', (req, res, next) => {
 });
 
 // Rate limiting — strict limit on auth endpoints to prevent brute-force
+// Skip entirely during automated tests (TEST_DB is set to ':memory:' in test env)
+const isTestEnv = () => !!process.env.TEST_DB;
+
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 20,
+  skip: isTestEnv,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Too many requests, please try again later.' },
@@ -72,6 +94,7 @@ const authLimiter = rateLimit({
 const apiLimiter = rateLimit({
   windowMs: 60 * 1000, // 1 minute
   max: 200,
+  skip: isTestEnv,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Too many requests, please try again later.' },
@@ -81,6 +104,7 @@ const apiLimiter = rateLimit({
 const pageLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: 300,
+  skip: isTestEnv,
   standardHeaders: true,
   legacyHeaders: false,
 });
@@ -140,8 +164,10 @@ app.use((err, req, res, _next) => {
   res.status(500).json({ error: 'Internal server error' });
 });
 
-app.listen(PORT, () => {
-  console.log(`Technician Checklist running on http://localhost:${PORT}`);
-});
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`Technician Checklist running on http://localhost:${PORT}`);
+  });
+}
 
 module.exports = app;

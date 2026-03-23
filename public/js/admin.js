@@ -7,7 +7,11 @@ async function apiFetch(url, opts = {}) {
     ...opts,
   });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+  if (!res.ok) {
+    const err = new Error(data.error || `HTTP ${res.status}`);
+    err.status = res.status;
+    throw err;
+  }
   return data;
 }
 
@@ -27,8 +31,8 @@ let currentUser = null;
 async function initNav() {
   try {
     currentUser = await apiFetch('/api/auth/me');
-  } catch {
-    window.location.href = '/';
+  } catch (err) {
+    if (!err.status || err.status === 401) window.location.href = '/';
     return;
   }
 

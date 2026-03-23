@@ -150,6 +150,14 @@ app.get('/settings', pageLimiter, requireAuth, (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'pages', 'settings.html'));
 });
 
+// GET /logout — server-side logout; safe to navigate to directly from the browser
+app.get('/logout', (req, res) => {
+  req.session.destroy(() => {
+    res.clearCookie('connect.sid');
+    res.redirect('/');
+  });
+});
+
 // ── API Routes ────────────────────────────────────────────────────────────────
 
 app.use('/api/auth', authLimiter, authRoutes);

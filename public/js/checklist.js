@@ -6,7 +6,11 @@ async function apiFetch(url, opts = {}) {
     ...opts,
   });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+  if (!res.ok) {
+    const err = new Error(data.error || `HTTP ${res.status}`);
+    err.status = res.status;
+    throw err;
+  }
   return data;
 }
 
@@ -28,8 +32,9 @@ function applyTheme(theme) {
 async function initNav() {
   try {
     currentUser = await apiFetch('/api/auth/me');
-  } catch {
-    window.location.href = '/';
+  } catch (err) {
+    // Only redirect to login on genuine 401 — not on rate-limit (429) or server errors
+    if (!err.status || err.status === 401) window.location.href = '/';
     return;
   }
 

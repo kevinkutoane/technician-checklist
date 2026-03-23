@@ -62,7 +62,8 @@ async function initNav() {
 
   document.getElementById('logoutBtn').addEventListener('click', () => {
     window.location.href = '/logout';
-  }); ─────────────────────────────────────────────────────────────
+  });
+}
 document.getElementById('submitBtn').addEventListener('click', async () => {
   const username = document.getElementById('qaUsername').value.trim();
   

@@ -64,7 +64,8 @@ async function initNav() {
 
   document.getElementById('logoutBtn').addEventListener('click', () => {
     window.location.href = '/logout';
-  }); ──────────────────────────────────────────────────────────
+  });
+}
 async function loadClassrooms() {
   try {
     const classrooms = await apiFetch('/api/classrooms');

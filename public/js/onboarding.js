@@ -63,7 +63,8 @@ async function initNav() {
 
   document.getElementById('logoutBtn').addEventListener('click', () => {
     window.location.href = '/logout';
-  }); ───────────────────────────────────────────────────────────
+  });
+}
 function initSignaturePad() {
   const canvas = document.getElementById('signatureCanvas');
   if (!canvas || typeof SignaturePad === 'undefined') return;

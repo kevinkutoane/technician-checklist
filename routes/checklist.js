@@ -118,8 +118,10 @@ router.post('/', async (req, res) => {
       .get(submission.id);
 
     // Audit log
+    const classroomRow = db.prepare('SELECT name FROM classrooms WHERE id = ?').get(classroom_id);
+    const classroomLabel = classroomRow ? classroomRow.name : `Classroom ${classroom_id}`;
     logAudit(req, 'checklist.submit', 'checklist_submission', submission.id,
-      `Classroom ${classroom_id} on ${submission_date}`);
+      `${classroomLabel} on ${submission_date}`);
 
     // Email alert for flagged items
     const flagged = items.filter((i) => i.status === 'not_working' || i.status === 'needs_repair');

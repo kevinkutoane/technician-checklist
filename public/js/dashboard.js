@@ -69,9 +69,8 @@ async function initNav() {
     applyTheme(prefs.theme);
   } catch (_) { /* ignore */ }
 
-  document.getElementById('logoutBtn').addEventListener('click', async () => {
-    await fetch('/api/auth/logout', { method: 'POST' });
-    window.location.href = '/';
+  document.getElementById('logoutBtn').addEventListener('click', () => {
+    window.location.href = '/logout';
   });
 
   if (currentUser.role === 'admin') {

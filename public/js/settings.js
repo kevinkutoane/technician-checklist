@@ -47,9 +47,8 @@ async function initNav() {
   links.push(`<li><a href="/settings" class="active"><span class="icon">🔧</span> Settings</a></li>`);
   navLinks.innerHTML = links.join('');
 
-  document.getElementById('logoutBtn').addEventListener('click', async () => {
-    await fetch('/api/auth/logout', { method: 'POST' });
-    window.location.href = '/';
+  document.getElementById('logoutBtn').addEventListener('click', () => {
+    window.location.href = '/logout';
   });
 
   // Show Notifications tab for admins only
@@ -99,7 +98,10 @@ document.getElementById('profileForm').addEventListener('submit', async (e) => {
       }),
     });
     showMsg('profileMsg', 'Profile saved successfully.');
-    document.getElementById('navUser').textContent = document.getElementById('inputFullName').value.trim();
+    const newName = document.getElementById('inputFullName').value.trim();
+    document.getElementById('navUser').textContent = newName;
+    const avatarEl = document.getElementById('navAvatar');
+    if (avatarEl) avatarEl.textContent = newName[0].toUpperCase();
   } catch (err) {
     showMsg('profileMsg', err.message, true);
   }

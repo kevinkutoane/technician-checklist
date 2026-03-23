@@ -62,13 +62,9 @@ async function initNav() {
     applyTheme(prefs.theme);
   } catch (_) { /* ignore */ }
 
-  document.getElementById('logoutBtn').addEventListener('click', async () => {
-    await fetch('/api/auth/logout', { method: 'POST' });
-    window.location.href = '/';
-  });
-}
-
-// ─── Load classrooms ──────────────────────────────────────────────────────────
+  document.getElementById('logoutBtn').addEventListener('click', () => {
+    window.location.href = '/logout';
+  }); ──────────────────────────────────────────────────────────
 async function loadClassrooms() {
   try {
     const classrooms = await apiFetch('/api/classrooms');

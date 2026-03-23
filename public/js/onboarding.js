@@ -61,13 +61,9 @@ async function initNav() {
     applyTheme(prefs.theme);
   } catch (_) { /* ignore */ }
 
-  document.getElementById('logoutBtn').addEventListener('click', async () => {
-    await fetch('/api/auth/logout', { method: 'POST' });
-    window.location.href = '/';
-  });
-}
-
-// ─── Signature Pad ───────────────────────────────────────────────────────────
+  document.getElementById('logoutBtn').addEventListener('click', () => {
+    window.location.href = '/logout';
+  }); ───────────────────────────────────────────────────────────
 function initSignaturePad() {
   const canvas = document.getElementById('signatureCanvas');
   if (!canvas || typeof SignaturePad === 'undefined') return;

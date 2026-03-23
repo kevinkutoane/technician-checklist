@@ -868,6 +868,14 @@ tr:last-child td { border-bottom: none; }
   --danger-lt:  rgba(239, 68, 68, 0.15);
 }
 
+[data-theme="dark"] .sidebar {
+  background: #0f172a;
+  border-right: 1px solid #1e293b;
+}
+
+[data-theme="dark"] .sidebar-brand,
+[data-theme="dark"] .sidebar-nav a { color: var(--gray-400); }
+
 [data-theme="dark"] body {
   background: var(--bg-gradient);
   color: var(--text-color);

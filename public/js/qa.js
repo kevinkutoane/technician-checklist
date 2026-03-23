@@ -60,13 +60,9 @@ async function initNav() {
     applyTheme(prefs.theme);
   } catch (_) { /* ignore */ }
 
-  document.getElementById('logoutBtn').addEventListener('click', async () => {
-    await fetch('/api/auth/logout', { method: 'POST' });
-    window.location.href = '/';
-  });
-}
-
-// ─── Form Logic ─────────────────────────────────────────────────────────────
+  document.getElementById('logoutBtn').addEventListener('click', () => {
+    window.location.href = '/logout';
+  }); ─────────────────────────────────────────────────────────────
 document.getElementById('submitBtn').addEventListener('click', async () => {
   const username = document.getElementById('qaUsername').value.trim();
   

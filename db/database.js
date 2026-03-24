@@ -3,7 +3,10 @@
 const Database = require('better-sqlite3');
 const path = require('path');
 
-const DB_PATH = process.env.TEST_DB || path.join(__dirname, '..', 'checklist.db');
+// On Azure App Service, DB_PATH should point to /home/checklist.db so the
+// database persists across deployments. Set the DB_PATH env var in Azure
+// Application Settings. Falls back to the project root for local development.
+const DB_PATH = process.env.TEST_DB || process.env.DB_PATH || path.join(__dirname, '..', 'checklist.db');
 
 const db = new Database(DB_PATH);
 

@@ -527,6 +527,7 @@ document.getElementById('applyFiltersBtn').addEventListener('click', async () =>
   ]);
 
   progressPollId = setInterval(loadTodayProgress, 30_000);
+  window.addEventListener('beforeunload', () => clearInterval(progressPollId));
 
   // Populate classroom selector for trends (admin only)
   if (currentUser && currentUser.role === 'admin') {

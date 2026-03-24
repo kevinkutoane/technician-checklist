@@ -224,4 +224,5 @@ async function refreshStatus() {
   if (!currentUser) return;
   await Promise.all([loadClassrooms(), refreshStatus()]);
   statusPollId = setInterval(refreshStatus, 30_000);
+  window.addEventListener('beforeunload', () => clearInterval(statusPollId));
 })();

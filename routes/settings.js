@@ -68,14 +68,14 @@ router.put('/profile', (req, res) => {
       return res.status(400).json({ error: 'New password must be at least 8 characters' });
     }
 
-    const row = db.prepare('SELECT password_hash FROM users WHERE id = ?')
+    const row = db.prepare('SELECT password FROM users WHERE id = ?')
       .get(req.session.user.id);
-    if (!bcrypt.compareSync(current_password, row.password_hash)) {
+    if (!bcrypt.compareSync(current_password, row.password)) {
       return res.status(400).json({ error: 'Current password is incorrect' });
     }
 
     const hash = bcrypt.hashSync(new_password, 12);
-    db.prepare('UPDATE users SET full_name = ?, username = ?, password_hash = ? WHERE id = ?')
+    db.prepare('UPDATE users SET full_name = ?, username = ?, password = ? WHERE id = ?')
       .run(cleanName, cleanUsername, hash, req.session.user.id);
   } else {
     db.prepare('UPDATE users SET full_name = ?, username = ? WHERE id = ?')

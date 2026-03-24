@@ -182,8 +182,26 @@ db.exec(`
   );
 `);
 
+// Equipment loans — temporary item loans to staff/visitors
+db.exec(`
+  CREATE TABLE IF NOT EXISTS equipment_loans (
+    id               INTEGER PRIMARY KEY AUTOINCREMENT,
+    technician_id    INTEGER NOT NULL,
+    borrower_name    TEXT    NOT NULL,
+    item_description TEXT    NOT NULL,
+    notes            TEXT    DEFAULT '',
+    loan_date        DATE    NOT NULL,
+    returned         BOOLEAN DEFAULT 0,
+    returned_at      DATETIME,
+    created_at       DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (technician_id) REFERENCES users(id)
+  );
+`);
+
 // Performance indexes — keep queries fast as data grows
 db.exec(`
+  CREATE INDEX IF NOT EXISTS idx_el_returned    ON equipment_loans(returned);
+  CREATE INDEX IF NOT EXISTS idx_el_date        ON equipment_loans(loan_date);
   CREATE INDEX IF NOT EXISTS idx_cs_date       ON checklist_submissions(submission_date);
   CREATE INDEX IF NOT EXISTS idx_cs_tech       ON checklist_submissions(technician_id);
   CREATE INDEX IF NOT EXISTS idx_cs_classroom  ON checklist_submissions(classroom_id);

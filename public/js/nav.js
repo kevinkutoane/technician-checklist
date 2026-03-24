@@ -55,6 +55,7 @@ async function initNav(activeHref) {
     links.push(`<li><a href="/qa"${activeHref === '/qa' ? ' class="active"' : ''}><span class="icon">🔍</span> QA Checklist</a></li>`);
   }
   links.push(`<li><a href="/dashboard"${activeHref === '/dashboard' ? ' class="active"' : ''}><span class="icon">📊</span> Dashboard</a></li>`);
+  links.push(`<li><a href="/loans"${activeHref === '/loans' ? ' class="active"' : ''}><span class="icon">🔄</span> Loans</a></li>`);
   if (user.role === 'admin') {
     links.push(`<li><a href="/admin"${activeHref === '/admin' ? ' class="active"' : ''}><span class="icon">⚙️</span> Admin</a></li>`);
   }
@@ -183,6 +184,27 @@ async function initNav(activeHref) {
 </ul>`
       });
     }
+
+    TABS.push({
+      id: 'hLoans', label: '🔄 Loans',
+      html: `<p><strong>Track temporary equipment loans</strong> — log items borrowed by staff and mark them returned when handed back.</p>
+<h4>How to log a loan</h4>
+<ol>
+  <li>Enter the <strong>Borrower Name</strong> (required).</li>
+  <li>Describe the <strong>Item</strong> — e.g. Laptop Charger, Mouse, HDMI Cable (required).</li>
+  <li>Add an optional <strong>Note</strong> — e.g. "Returns after 14:00".</li>
+  <li>Click <strong>Log Loan</strong>.</li>
+</ol>
+<h4>Marking items returned</h4>
+<ul>
+  <li>Click <strong>✅ Mark Returned</strong> next to any outstanding loan — any logged-in technician can do this.</li>
+  <li>The item moves out of the Outstanding list and records the return time.</li>
+</ul>
+<h4>History view</h4>
+<ul>
+  <li>Switch to <strong>All History</strong> to see returned items with a green badge and return timestamp.</li>
+</ul>`
+    });
 
     TABS.push({
       id: 'hSettings', label: '🔧 Settings',

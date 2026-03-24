@@ -14,6 +14,7 @@ const dashboardRoutes = require('./routes/dashboard');
 const onboardingRoutes = require('./routes/onboarding');
 const qaRoutes = require('./routes/qa');
 const settingsRoutes = require('./routes/settings');
+const loansRoutes = require('./routes/loans');
 const { requireAuth, requireAdmin } = require('./middleware/auth');
 const db = require('./db/database');
 
@@ -150,6 +151,10 @@ app.get('/settings', pageLimiter, requireAuth, (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'pages', 'settings.html'));
 });
 
+app.get('/loans', pageLimiter, requireAuth, (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'pages', 'loans.html'));
+});
+
 app.get('/reset-password', pageLimiter, (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'pages', 'reset-password.html'));
 });
@@ -171,6 +176,7 @@ app.use('/api/dashboard', apiLimiter, dashboardRoutes);
 app.use('/api/onboarding', apiLimiter, onboardingRoutes);
 app.use('/api/qa', apiLimiter, qaRoutes);
 app.use('/api/settings', apiLimiter, settingsRoutes);
+app.use('/api/loans', apiLimiter, loansRoutes);
 
 // 404 handler
 app.use((req, res) => {

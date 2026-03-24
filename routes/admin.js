@@ -117,28 +117,32 @@ router.delete('/equipment/:id', requireAdmin, (req, res) => {
 // GET /api/technicians — admin only
 router.get('/technicians', requireAdmin, (req, res) => {
   const technicians = db
-    .prepare("SELECT id, username, full_name, role, created_at FROM users WHERE role = 'technician' ORDER BY full_name")
+    .prepare("SELECT id, username, full_name, email, role, created_at FROM users WHERE role = 'technician' ORDER BY full_name")
     .all();
   res.json(technicians);
 });
 
 // POST /api/technicians
 router.post('/technicians', requireAdmin, async (req, res) => {
-  const { username, password, full_name } = req.body;
+  const { username, password, full_name, email } = req.body;
   if (!username || !username.trim() || !password || !full_name || !full_name.trim()) {
     return res.status(400).json({ error: 'username, password, and full_name are required' });
   }
   if (password.length < 6) {
     return res.status(400).json({ error: 'Password must be at least 6 characters' });
   }
+  const cleanEmail = email && typeof email === 'string' ? email.trim().toLowerCase() : null;
+  if (cleanEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+    return res.status(400).json({ error: 'Invalid email address' });
+  }
   try {
     const hash = await bcrypt.hash(password, 10);
     const stmt = db.prepare(
-      "INSERT INTO users (username, password, full_name, role) VALUES (?, ?, ?, 'technician')"
+      "INSERT INTO users (username, password, full_name, email, role) VALUES (?, ?, ?, ?, 'technician')"
     );
-    const result = stmt.run(username.trim(), hash, full_name.trim());
+    const result = stmt.run(username.trim(), hash, full_name.trim(), cleanEmail);
     const user = db
-      .prepare('SELECT id, username, full_name, role, created_at FROM users WHERE id = ?')
+      .prepare('SELECT id, username, full_name, email, role, created_at FROM users WHERE id = ?')
       .get(result.lastInsertRowid);
     res.status(201).json(user);
   } catch (err) {
@@ -152,11 +156,14 @@ router.post('/technicians', requireAdmin, async (req, res) => {
 // PUT /api/technicians/:id
 router.put('/technicians/:id', requireAdmin, async (req, res) => {
   const { id } = req.params;
-  const { username, password, full_name } = req.body;
+  const { username, password, full_name, email } = req.body;
   if (!username || !username.trim() || !full_name || !full_name.trim()) {
     return res.status(400).json({ error: 'username and full_name are required' });
   }
-
+  const cleanEmail = email && typeof email === 'string' ? email.trim().toLowerCase() : null;
+  if (cleanEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+    return res.status(400).json({ error: 'Invalid email address' });
+  }
   try {
     let result;
     if (password && password.trim() !== '') {
@@ -164,9 +171,9 @@ router.put('/technicians/:id', requireAdmin, async (req, res) => {
         return res.status(400).json({ error: 'Password must be at least 6 characters' });
       }
       const hash = await bcrypt.hash(password, 10);
-      result = db.prepare('UPDATE users SET username = ?, full_name = ?, password = ? WHERE id = ? AND role = \'technician\'').run(username.trim(), full_name.trim(), hash, id);
+      result = db.prepare("UPDATE users SET username = ?, full_name = ?, email = ?, password = ? WHERE id = ? AND role = 'technician'").run(username.trim(), full_name.trim(), cleanEmail, hash, id);
     } else {
-      result = db.prepare('UPDATE users SET username = ?, full_name = ? WHERE id = ? AND role = \'technician\'').run(username.trim(), full_name.trim(), id);
+      result = db.prepare("UPDATE users SET username = ?, full_name = ?, email = ? WHERE id = ? AND role = 'technician'").run(username.trim(), full_name.trim(), cleanEmail, id);
     }
 
     if (result.changes === 0) {
@@ -174,7 +181,7 @@ router.put('/technicians/:id', requireAdmin, async (req, res) => {
     }
 
     const user = db
-      .prepare('SELECT id, username, full_name, role, created_at FROM users WHERE id = ?')
+      .prepare('SELECT id, username, full_name, email, role, created_at FROM users WHERE id = ?')
       .get(id);
     res.json(user);
   } catch (err) {
@@ -195,6 +202,102 @@ router.delete('/technicians/:id', requireAdmin, (req, res) => {
   db.prepare('DELETE FROM users WHERE id = ?').run(id);
   logAudit(req, 'technician.delete', 'user', Number(id), `Removed ${user.full_name}`);
   res.json({ message: 'Technician deleted' });
+});
+
+// ── Admins ────────────────────────────────────────────────────────────────────
+
+// GET /api/admins — list all admin accounts
+router.get('/admins', requireAdmin, (req, res) => {
+  const currentId = req.session.user.id;
+  const rows = db
+    .prepare("SELECT id, username, full_name, email, created_at FROM users WHERE role = 'admin' ORDER BY full_name")
+    .all();
+  // Flag the calling user so the UI can protect them from self-deletion
+  res.json(rows.map((r) => ({ ...r, isSelf: r.id === currentId })));
+});
+
+// POST /api/admins
+router.post('/admins', requireAdmin, async (req, res) => {
+  const { username, password, full_name, email } = req.body;
+  if (!username || !username.trim() || !password || !full_name || !full_name.trim()) {
+    return res.status(400).json({ error: 'username, password, and full_name are required' });
+  }
+  if (password.length < 6) {
+    return res.status(400).json({ error: 'Password must be at least 6 characters' });
+  }
+  const cleanEmail = email && typeof email === 'string' ? email.trim().toLowerCase() : null;
+  if (cleanEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+    return res.status(400).json({ error: 'Invalid email address' });
+  }
+  try {
+    const hash = await bcrypt.hash(password, 10);
+    const result = db.prepare(
+      "INSERT INTO users (username, password, full_name, email, role) VALUES (?, ?, ?, ?, 'admin')"
+    ).run(username.trim(), hash, full_name.trim(), cleanEmail);
+    const user = db
+      .prepare('SELECT id, username, full_name, email, created_at FROM users WHERE id = ?')
+      .get(result.lastInsertRowid);
+    res.status(201).json(user);
+  } catch (err) {
+    if (err.message && err.message.includes('UNIQUE constraint failed')) {
+      return res.status(400).json({ error: 'Username already exists' });
+    }
+    res.status(500).json({ error: 'Failed to create admin' });
+  }
+});
+
+// PUT /api/admins/:id
+router.put('/admins/:id', requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  const { username, password, full_name, email } = req.body;
+  if (!username || !username.trim() || !full_name || !full_name.trim()) {
+    return res.status(400).json({ error: 'username and full_name are required' });
+  }
+  const cleanEmail = email && typeof email === 'string' ? email.trim().toLowerCase() : null;
+  if (cleanEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+    return res.status(400).json({ error: 'Invalid email address' });
+  }
+  try {
+    let result;
+    if (password && password.trim() !== '') {
+      if (password.length < 6) {
+        return res.status(400).json({ error: 'Password must be at least 6 characters' });
+      }
+      const hash = await bcrypt.hash(password, 10);
+      result = db.prepare("UPDATE users SET username = ?, full_name = ?, email = ?, password = ? WHERE id = ? AND role = 'admin'")
+        .run(username.trim(), full_name.trim(), cleanEmail, hash, id);
+    } else {
+      result = db.prepare("UPDATE users SET username = ?, full_name = ?, email = ? WHERE id = ? AND role = 'admin'")
+        .run(username.trim(), full_name.trim(), cleanEmail, id);
+    }
+    if (result.changes === 0) {
+      return res.status(404).json({ error: 'Admin not found' });
+    }
+    const user = db
+      .prepare('SELECT id, username, full_name, email, created_at FROM users WHERE id = ?')
+      .get(id);
+    res.json(user);
+  } catch (err) {
+    if (err.message && err.message.includes('UNIQUE constraint failed')) {
+      return res.status(400).json({ error: 'Username already exists' });
+    }
+    res.status(500).json({ error: 'Failed to update admin' });
+  }
+});
+
+// DELETE /api/admins/:id
+router.delete('/admins/:id', requireAdmin, (req, res) => {
+  const { id } = req.params;
+  if (Number(id) === req.session.user.id) {
+    return res.status(400).json({ error: 'You cannot delete your own account' });
+  }
+  const user = db.prepare("SELECT id, full_name FROM users WHERE id = ? AND role = 'admin'").get(id);
+  if (!user) {
+    return res.status(404).json({ error: 'Admin not found' });
+  }
+  db.prepare('DELETE FROM users WHERE id = ?').run(id);
+  logAudit(req, 'admin.delete', 'user', Number(id), `Removed admin ${user.full_name}`);
+  res.json({ message: 'Admin deleted' });
 });
 
 // ── Audit Log ─────────────────────────────────────────────────────────────────

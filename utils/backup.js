@@ -45,9 +45,10 @@ function runBackup() {
   }
 }
 
-// Schedule daily at 02:00
-cron.schedule('0 2 * * *', runBackup);
-
-console.log('[backup] Daily backup scheduled at 02:00');
+// Schedule daily at 02:00 (skip in test environment to avoid keeping Jest alive)
+if (process.env.NODE_ENV !== 'test') {
+  cron.schedule('0 2 * * *', runBackup);
+  console.log('[backup] Daily backup scheduled at 02:00');
+}
 
 module.exports = { runBackup };

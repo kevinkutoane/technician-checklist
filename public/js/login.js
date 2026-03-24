@@ -2,7 +2,14 @@
 
 const form = document.getElementById('loginForm');
 const errorEl = document.getElementById('loginError');
+const successEl = document.getElementById('loginSuccess');
 const loginBtn = document.getElementById('loginBtn');
+
+// Show success notice if redirected here after a password reset
+if (new URLSearchParams(window.location.search).get('reset') === 'success') {
+  successEl.textContent = 'Password reset successfully. You can now log in with your new password.';
+  successEl.classList.remove('hidden');
+}
 
 form.addEventListener('submit', async (e) => {
   e.preventDefault();

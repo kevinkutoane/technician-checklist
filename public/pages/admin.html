@@ -44,6 +44,7 @@
     <button class="tab-btn" data-tab="classrooms">Classrooms</button>
     <button class="tab-btn" data-tab="equipment">Equipment</button>
     <button class="tab-btn" data-tab="technicians">Technicians</button>
+    <button class="tab-btn" data-tab="admins">Admins</button>
     <button class="tab-btn" data-tab="submissions">Checklist Submissions</button>
     <button class="tab-btn" data-tab="qa">QA Submissions</button>
     <button class="tab-btn" data-tab="onboarding">Asset Agreements</button>
@@ -91,6 +92,17 @@
         <button class="btn btn-primary btn-sm" id="addTechnicianBtn">+ Add Technician</button>
       </div>
       <div id="techniciansList"><div class="spinner"></div></div>
+    </div>
+  </div>
+
+  <!-- ─── Admins Tab ─────────────────────────────────────────────────── -->
+  <div id="tab-admins" class="tab-content">
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Admins</span>
+        <button class="btn btn-primary btn-sm" id="addAdminBtn">+ Add Admin</button>
+      </div>
+      <div id="adminsList"><div class="spinner"></div></div>
     </div>
   </div>
 
@@ -258,12 +270,45 @@
       <input class="form-control" type="text" id="techUsername" placeholder="e.g. jsmith" />
     </div>
     <div class="form-group">
+      <label class="form-label">Email</label>
+      <input class="form-control" type="email" id="techEmail" placeholder="e.g. jsmith@example.com (optional)" />
+    </div>
+    <div class="form-group">
       <label class="form-label">Password *</label>
       <input class="form-control" type="password" id="techPassword" placeholder="Min 6 characters" />
     </div>
     <div class="modal-footer">
       <button class="btn btn-secondary" id="closeTechnicianModal">Cancel</button>
       <button class="btn btn-primary" id="saveTechnicianBtn">Add Technician</button>
+    </div>
+  </div>
+</div>
+
+<!-- Admin Modal -->
+<div class="modal-overlay" id="adminModal">
+  <div class="modal">
+    <h3 class="modal-title" id="adminModalTitle">Add Admin</h3>
+    <div id="adminModalError" class="alert alert-danger hidden"></div>
+    <input type="hidden" id="adminId" />
+    <div class="form-group">
+      <label class="form-label">Full Name *</label>
+      <input class="form-control" type="text" id="adminFullName" placeholder="e.g. Jane Doe" />
+    </div>
+    <div class="form-group">
+      <label class="form-label">Username *</label>
+      <input class="form-control" type="text" id="adminUsername" placeholder="e.g. jdoe" />
+    </div>
+    <div class="form-group">
+      <label class="form-label">Email</label>
+      <input class="form-control" type="email" id="adminEmail" placeholder="e.g. jdoe@example.com (used for password resets)" />
+    </div>
+    <div class="form-group">
+      <label class="form-label">Password *</label>
+      <input class="form-control" type="password" id="adminPassword" placeholder="Min 6 characters" />
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" id="closeAdminModal">Cancel</button>
+      <button class="btn btn-primary" id="saveAdminBtn">Add Admin</button>
     </div>
   </div>
 </div>

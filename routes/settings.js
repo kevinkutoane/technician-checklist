@@ -31,7 +31,7 @@ function setPref(userId, key, value) {
 
 // GET /api/settings/profile
 router.get('/profile', (req, res) => {
-  const user = db.prepare('SELECT full_name, username FROM users WHERE id = ?')
+  const user = db.prepare('SELECT full_name, username, email FROM users WHERE id = ?')
     .get(req.session.user.id);
   if (!user) return res.status(404).json({ error: 'User not found' });
   res.json(user);
@@ -39,7 +39,7 @@ router.get('/profile', (req, res) => {
 
 // PUT /api/settings/profile
 router.put('/profile', (req, res) => {
-  const { full_name, username, current_password, new_password } = req.body;
+  const { full_name, username, email, current_password, new_password } = req.body;
 
   if (!full_name || typeof full_name !== 'string' || !full_name.trim()) {
     return res.status(400).json({ error: 'Display name is required' });
@@ -50,6 +50,12 @@ router.put('/profile', (req, res) => {
 
   const cleanName = full_name.trim();
   const cleanUsername = username.trim().toLowerCase();
+  const cleanEmail = email && typeof email === 'string' ? email.trim().toLowerCase() : null;
+
+  // Basic email format validation (optional field)
+  if (cleanEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+    return res.status(400).json({ error: 'Invalid email address' });
+  }
 
   // Username uniqueness check (exclude self)
   const existing = db.prepare(
@@ -75,11 +81,11 @@ router.put('/profile', (req, res) => {
     }
 
     const hash = bcrypt.hashSync(new_password, 12);
-    db.prepare('UPDATE users SET full_name = ?, username = ?, password = ? WHERE id = ?')
-      .run(cleanName, cleanUsername, hash, req.session.user.id);
+    db.prepare('UPDATE users SET full_name = ?, username = ?, email = ?, password = ? WHERE id = ?')
+      .run(cleanName, cleanUsername, cleanEmail, hash, req.session.user.id);
   } else {
-    db.prepare('UPDATE users SET full_name = ?, username = ? WHERE id = ?')
-      .run(cleanName, cleanUsername, req.session.user.id);
+    db.prepare('UPDATE users SET full_name = ?, username = ?, email = ? WHERE id = ?')
+      .run(cleanName, cleanUsername, cleanEmail, req.session.user.id);
   }
 
   // Refresh session

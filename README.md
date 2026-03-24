@@ -8,14 +8,16 @@ A mobile-friendly, session-authenticated web application that replaces a paper-b
 
 ### For All Users
 - **Authentication** — Session-based login (bcrypt-hashed passwords, 8-hour sessions), two roles: `admin` and `technician`
+- **Forgot Password** — Admin accounts can request a password-reset link via email; signed JWT-free tokens (SHA-256 hash stored, raw token emailed) expire after 1 hour and are single-use
 - **Classroom Checklist** — Select a classroom, set equipment status (Working / Needs Repair / Not Working), add notes, submit
 - **Asset Agreement (Onboarding)** — Log laptop/peripheral issuance with a digital signature capture
 - **QA Checklist** — 28-step IT setup verification form for new machines
 - **Dashboard** — Today's coverage tiles, submission history, flagged issues table, filter by date/classroom/technician, export to PDF
-- **Settings** — Change display name, username, and password; toggle dark/light theme
+- **Settings** — Change display name, username, email address, and password; toggle dark/light theme
 
 ### For Admins Only
-- **Admin Panel** — Full CRUD for classrooms, equipment, and technicians; view all checklist, QA, and onboarding submissions; audit log
+- **Admin Panel** — Full CRUD for classrooms, equipment, technicians, and admin accounts; view all checklist, QA, and onboarding submissions; audit log
+- **Admins Management** — Create, edit, and delete admin accounts from the Admins tab; self-deletion is prevented; email address per admin enables password-reset flow
 - **Admin Overview Tab** — Daily at-a-glance: total classrooms / equipment / technicians, coverage today, unchecked classrooms, flagged items, most-problematic equipment (30-day trend), recent audit activity
 - **Dashboard Enhancements** — Coverage percentage stat, unchecked-classroom alert banner, data charts (daily pulse, equipment health mix, high-maintenance classrooms, technician performance, equipment trends)
 - **Notifications Settings** — Per-admin alert email address for flagged-equipment notifications
@@ -81,6 +83,7 @@ The app runs on **http://localhost:3000** by default.
 | `SMTP_SECURE`    | `false`                               | `true` for port 465 / TLS                                |
 | `SMTP_USER`      | —                                     | SMTP username                                            |
 | `SMTP_PASS`      | —                                     | SMTP password                                            |
+| `APP_URL`        | `http://localhost:3000`               | Base URL used in password-reset email links              |
 | `ALERT_EMAIL`    | —                                     | Fallback recipient for flagged-equipment alerts          |
 | `FROM_EMAIL`     | SMTP_USER or `noreply@example.com`    | From address for outbound email                          |
 | `BACKUP_DIR`     | `./backups`                           | Directory for automatic daily SQLite backups             |
@@ -107,7 +110,7 @@ The app runs on **http://localhost:3000** by default.
 │   ├── qa.js                  # QA checklist endpoints
 │   └── settings.js            # Profile & preferences endpoints
 ├── utils/
-│   ├── mailer.js              # Nodemailer flag-alert helper
+│   ├── mailer.js              # Nodemailer — flag-alert and password-reset email helpers
 │   └── backup.js              # Scheduled SQLite backup (daily at 02:00)
 └── public/
     ├── css/styles.css         # All styles (light & dark theme, component library)
@@ -118,6 +121,7 @@ The app runs on **http://localhost:3000** by default.
     │   ├── login.js
     │   ├── onboarding.js
     │   ├── qa.js
+    │   ├── reset-password.js      # Forgot-password & reset-password page logic
     │   └── settings.js
     └── pages/
         ├── admin.html
@@ -126,6 +130,7 @@ The app runs on **http://localhost:3000** by default.
         ├── login.html
         ├── onboarding.html
         ├── qa.html
+        ├── reset-password.html    # Forgot-password request & token-based reset UI
         └── settings.html
 ```
 
@@ -135,7 +140,7 @@ The app runs on **http://localhost:3000** by default.
 
 | Table                 | Purpose                                             |
 |-----------------------|-----------------------------------------------------|
-| `users`               | Technicians and admins                              |
+| `users`               | Technicians and admins — includes `email`, `reset_token` (SHA-256 hash), `reset_token_expires` (unix ms) |
 | `classrooms`          | Room list                                           |
 | `equipment`           | Equipment per classroom                             |
 | `checklist_submissions` | One per technician/classroom/date              |
@@ -150,19 +155,21 @@ The app runs on **http://localhost:3000** by default.
 ## API Endpoints (summary)
 
 ### Auth
-| Method | Path                  | Description          |
-|--------|-----------------------|----------------------|
-| POST   | `/api/auth/login`     | Login                |
-| POST   | `/api/auth/logout`    | Logout               |
-| GET    | `/api/auth/me`        | Current user session |
+| Method | Path                            | Auth  | Description                                         |
+|--------|---------------------------------|-------|-----------------------------------------------------|
+| POST   | `/api/auth/login`               | —     | Login (returns session cookie)                      |
+| POST   | `/api/auth/logout`              | any   | Logout                                              |
+| GET    | `/api/auth/me`                  | any   | Current user session info                           |
+| POST   | `/api/auth/forgot-password`     | —     | Request password-reset email (admin accounts only); always returns neutral 200 (no user enumeration) |
+| POST   | `/api/auth/reset-password`      | —     | Consume reset token and set new password            |
 
 ### Settings
-| Method | Path                          | Description                          |
-|--------|-------------------------------|--------------------------------------|
-| GET    | `/api/settings/profile`       | Get display name + username          |
-| PUT    | `/api/settings/profile`       | Update name, username, password      |
-| GET    | `/api/settings/preferences`   | Get theme (+ alert_email for admins) |
-| PUT    | `/api/settings/preferences`   | Update theme / alert_email           |
+| Method | Path                          | Description                                 |
+|--------|-------------------------------|---------------------------------------------|
+| GET    | `/api/settings/profile`       | Get display name, username, and email       |
+| PUT    | `/api/settings/profile`       | Update name, username, email, and password  |
+| GET    | `/api/settings/preferences`   | Get theme (+ alert_email for admins)        |
+| PUT    | `/api/settings/preferences`   | Update theme / alert_email                  |
 
 ### Dashboard
 | Method | Path                              | Auth    | Description                 |
@@ -174,12 +181,20 @@ The app runs on **http://localhost:3000** by default.
 | GET    | `/api/dashboard/admin-overview`   | admin   | Overview tab data           |
 | GET    | `/api/dashboard/export`           | any     | PDF export                  |
 
+### Admin — Admins Management
+| Method | Path                  | Auth  | Description                                       |
+|--------|-----------------------|-------|---------------------------------------------------|
+| GET    | `/api/admins`         | admin | List all admin accounts (includes `isSelf` flag)  |
+| POST   | `/api/admins`         | admin | Create a new admin account                        |
+| PUT    | `/api/admins/:id`     | admin | Update admin name, email, or password             |
+| DELETE | `/api/admins/:id`     | admin | Delete an admin (self-deletion returns 400)       |
+
 ---
 
 ## Running Tests
 
 ```bash
-npm test               # Jest — 148 tests
+npm test               # Jest
 npm run test:coverage  # With coverage report (≥85% line, ≥80% branch)
 ```
 

@@ -24,9 +24,10 @@ function closeModal(id) { document.getElementById(id).classList.remove('open'); 
 document.getElementById('closeClassroomModal').addEventListener('click', () => closeModal('classroomModal'));
 document.getElementById('closeEquipmentModal').addEventListener('click', () => closeModal('equipmentModal'));
 document.getElementById('closeTechnicianModal').addEventListener('click', () => closeModal('technicianModal'));
+document.getElementById('closeAdminModal').addEventListener('click', () => closeModal('adminModal'));
 
 // Close modal on overlay click
-['classroomModal', 'equipmentModal', 'technicianModal'].forEach((id) => {
+['classroomModal', 'equipmentModal', 'technicianModal', 'adminModal'].forEach((id) => {
   document.getElementById(id).addEventListener('click', (e) => {
     if (e.target === e.currentTarget) closeModal(id);
   });
@@ -282,12 +283,13 @@ function renderTechnicians() {
   el.innerHTML = `
     <div class="table-wrapper">
       <table>
-        <thead><tr><th>Name</th><th>Username</th><th>Created</th><th>Actions</th></tr></thead>
+        <thead><tr><th>Name</th><th>Username</th><th>Email</th><th>Created</th><th>Actions</th></tr></thead>
         <tbody>
           ${technicians.map((t) => `
             <tr>
               <td>${esc(t.full_name)}</td>
               <td><code>${esc(t.username)}</code></td>
+              <td>${esc(t.email || '—')}</td>
               <td>${new Date(t.created_at).toLocaleDateString()}</td>
               <td>
                 <button class="btn btn-secondary btn-sm" onclick="editTechnician(${t.id})">Edit</button>
@@ -317,6 +319,7 @@ document.getElementById('addTechnicianBtn').addEventListener('click', () => {
   document.getElementById('technicianModalTitle').textContent = 'Add Technician';
   document.getElementById('techFullName').value = '';
   document.getElementById('techUsername').value = '';
+  document.getElementById('techEmail').value = '';
   document.getElementById('techPassword').value = '';
   document.getElementById('techPassword').placeholder = 'Min 6 characters';
   document.getElementById('saveTechnicianBtn').textContent = 'Add Technician';
@@ -331,6 +334,7 @@ window.editTechnician = function (id) {
   document.getElementById('technicianModalTitle').textContent = 'Edit Technician';
   document.getElementById('techFullName').value = t.full_name;
   document.getElementById('techUsername').value = t.username;
+  document.getElementById('techEmail').value = t.email || '';
   document.getElementById('techPassword').value = '';
   document.getElementById('techPassword').placeholder = 'Leave blank to keep current password';
   document.getElementById('saveTechnicianBtn').textContent = 'Save Changes';
@@ -352,6 +356,7 @@ document.getElementById('saveTechnicianBtn').addEventListener('click', async () 
   const id = document.getElementById('techId').value;
   const full_name = document.getElementById('techFullName').value.trim();
   const username = document.getElementById('techUsername').value.trim();
+  const email = document.getElementById('techEmail').value.trim();
   const password = document.getElementById('techPassword').value;
   const errEl = document.getElementById('technicianModalError');
 
@@ -371,12 +376,127 @@ document.getElementById('saveTechnicianBtn').addEventListener('click', async () 
 
   try {
     if (id) {
-      await apiFetch(`/api/technicians/${id}`, { method: 'PUT', body: JSON.stringify({ full_name, username, password }) });
+      await apiFetch(`/api/technicians/${id}`, { method: 'PUT', body: JSON.stringify({ full_name, username, email, password }) });
     } else {
-      await apiFetch('/api/technicians', { method: 'POST', body: JSON.stringify({ full_name, username, password }) });
+      await apiFetch('/api/technicians', { method: 'POST', body: JSON.stringify({ full_name, username, email, password }) });
     }
     closeModal('technicianModal');
     await loadTechnicians();
+  } catch (err) {
+    errEl.textContent = err.message;
+    errEl.classList.remove('hidden');
+  }
+});
+
+// ─── Admins ─────────────────────────────────────────────────────────────────
+let admins = [];
+
+async function loadAdmins() {
+  const el = document.getElementById('adminsList');
+  el.innerHTML = '<div class="spinner"></div>';
+  try {
+    admins = await apiFetch('/api/admins');
+    renderAdmins();
+  } catch (err) {
+    el.innerHTML = `<div class="alert alert-danger">${err.message}</div>`;
+  }
+}
+
+function renderAdmins() {
+  const el = document.getElementById('adminsList');
+  if (!admins.length) {
+    el.innerHTML = '<div class="empty-state"><div class="empty-icon">🔐</div><p>No admins found</p></div>';
+    return;
+  }
+  el.innerHTML = `
+    <div class="table-wrapper">
+      <table>
+        <thead><tr><th>Name</th><th>Username</th><th>Email</th><th>Created</th><th>Actions</th></tr></thead>
+        <tbody>
+          ${admins.map((a) => `
+            <tr>
+              <td>${esc(a.full_name)}</td>
+              <td><code>${esc(a.username)}</code></td>
+              <td>${esc(a.email || '—')}</td>
+              <td>${new Date(a.created_at).toLocaleDateString()}</td>
+              <td>
+                <button class="btn btn-secondary btn-sm" onclick="editAdmin(${a.id})">Edit</button>
+                ${a.isSelf ? '' : `<button class="btn btn-danger btn-sm" onclick="deleteAdmin(${a.id}, '${esc(a.full_name)}')">Remove</button>`}
+              </td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+document.getElementById('addAdminBtn').addEventListener('click', () => {
+  document.getElementById('adminId').value = '';
+  document.getElementById('adminModalTitle').textContent = 'Add Admin';
+  document.getElementById('adminFullName').value = '';
+  document.getElementById('adminUsername').value = '';
+  document.getElementById('adminEmail').value = '';
+  document.getElementById('adminPassword').value = '';
+  document.getElementById('adminPassword').placeholder = 'Min 6 characters';
+  document.getElementById('saveAdminBtn').textContent = 'Add Admin';
+  document.getElementById('adminModalError').classList.add('hidden');
+  openModal('adminModal');
+});
+
+window.editAdmin = function (id) {
+  const a = admins.find((x) => x.id === id);
+  if (!a) return;
+  document.getElementById('adminId').value = a.id;
+  document.getElementById('adminModalTitle').textContent = 'Edit Admin';
+  document.getElementById('adminFullName').value = a.full_name;
+  document.getElementById('adminUsername').value = a.username;
+  document.getElementById('adminEmail').value = a.email || '';
+  document.getElementById('adminPassword').value = '';
+  document.getElementById('adminPassword').placeholder = 'Leave blank to keep current password';
+  document.getElementById('saveAdminBtn').textContent = 'Save Changes';
+  document.getElementById('adminModalError').classList.add('hidden');
+  openModal('adminModal');
+};
+
+window.deleteAdmin = async function (id, name) {
+  if (!confirm(`Remove admin "${name}"? This cannot be undone.`)) return;
+  try {
+    await apiFetch(`/api/admins/${id}`, { method: 'DELETE' });
+    await loadAdmins();
+  } catch (err) {
+    alert(`Error: ${err.message}`);
+  }
+};
+
+document.getElementById('saveAdminBtn').addEventListener('click', async () => {
+  const id = document.getElementById('adminId').value;
+  const full_name = document.getElementById('adminFullName').value.trim();
+  const username = document.getElementById('adminUsername').value.trim();
+  const email = document.getElementById('adminEmail').value.trim();
+  const password = document.getElementById('adminPassword').value;
+  const errEl = document.getElementById('adminModalError');
+
+  if (!full_name || !username) {
+    errEl.textContent = 'Name and username are required';
+    errEl.classList.remove('hidden');
+    return;
+  }
+  if (!id && !password) {
+    errEl.textContent = 'Password is required when creating a new admin';
+    errEl.classList.remove('hidden');
+    return;
+  }
+  errEl.classList.add('hidden');
+
+  try {
+    if (id) {
+      await apiFetch(`/api/admins/${id}`, { method: 'PUT', body: JSON.stringify({ full_name, username, email, password }) });
+    } else {
+      await apiFetch('/api/admins', { method: 'POST', body: JSON.stringify({ full_name, username, email, password }) });
+    }
+    closeModal('adminModal');
+    await loadAdmins();
   } catch (err) {
     errEl.textContent = err.message;
     errEl.classList.remove('hidden');
@@ -621,7 +741,7 @@ async function loadAuditLog() {
 (async function init() {
   currentUser = await initNav('/admin');
   if (!currentUser) return;
-  await Promise.all([loadOverview(), loadClassrooms(), loadTechnicians()]);
+  await Promise.all([loadOverview(), loadClassrooms(), loadTechnicians(), loadAdmins()]);
 })();
 
 // ─── Overview ─────────────────────────────────────────────────────────────

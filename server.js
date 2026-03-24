@@ -150,6 +150,10 @@ app.get('/settings', pageLimiter, requireAuth, (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'pages', 'settings.html'));
 });
 
+app.get('/reset-password', pageLimiter, (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'pages', 'reset-password.html'));
+});
+
 // GET /logout — server-side logout; safe to navigate to directly from the browser
 app.get('/logout', (req, res) => {
   req.session.destroy(() => {

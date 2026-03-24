@@ -96,4 +96,47 @@ async function sendFlagAlert(flaggedItems, classroomName, technicianName, submis
   }
 }
 
-module.exports = { sendFlagAlert };
+/**
+ * Send a password-reset email to an admin user.
+ *
+ * @param {string} toEmail   Recipient email address
+ * @param {string} resetLink Full URL to the reset page (includes token query param)
+ * @param {string} username  Admin's username (used for personalisation)
+ */
+async function sendPasswordReset(toEmail, resetLink, username) {
+  if (!transporter) return;
+
+  const subject = '[Technician Checklist] Password Reset Request';
+  const html = `
+    <h2 style="color:#4f46e5">Password Reset</h2>
+    <p>Hi <strong>${username}</strong>,</p>
+    <p>We received a request to reset your password. Click the button below to choose a new one.
+       This link is valid for <strong>1 hour</strong> and can only be used once.</p>
+    <p style="margin:1.5rem 0">
+      <a href="${resetLink}"
+         style="background:#4f46e5;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;font-weight:600">
+        Reset My Password
+      </a>
+    </p>
+    <p>If the button doesn't work, copy and paste this link into your browser:<br/>
+       <a href="${resetLink}">${resetLink}</a></p>
+    <hr style="border:none;border-top:1px solid #e5e7eb;margin:1.5rem 0"/>
+    <p style="color:#6b7280;font-size:12px">
+      If you did not request a password reset, you can safely ignore this email — your password will not change.<br/>
+      This is an automated message from the GIBS Technician Checklist system.
+    </p>
+  `;
+
+  try {
+    await transporter.sendMail({
+      from: FROM_EMAIL,
+      to: toEmail,
+      subject,
+      html,
+    });
+  } catch (err) {
+    console.error('[mailer] Failed to send password reset email:', err.message);
+  }
+}
+
+module.exports = { sendFlagAlert, sendPasswordReset };

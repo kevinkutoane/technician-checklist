@@ -27,6 +27,7 @@ async function loadProfile() {
     const p = await apiFetch('/api/settings/profile');
     document.getElementById('inputFullName').value = p.full_name;
     document.getElementById('inputUsername').value = p.username;
+    document.getElementById('inputEmail').value = p.email || '';
   } catch (err) {
     showMsg('profileMsg', err.message, true);
   }
@@ -40,6 +41,7 @@ document.getElementById('profileForm').addEventListener('submit', async (e) => {
       body: JSON.stringify({
         full_name: document.getElementById('inputFullName').value.trim(),
         username: document.getElementById('inputUsername').value.trim(),
+        email: document.getElementById('inputEmail').value.trim(),
       }),
     });
     showMsg('profileMsg', 'Profile saved successfully.');
@@ -66,6 +68,7 @@ document.getElementById('passwordForm').addEventListener('submit', async (e) => 
       body: JSON.stringify({
         full_name: document.getElementById('inputFullName').value.trim(),
         username: document.getElementById('inputUsername').value.trim(),
+        email: document.getElementById('inputEmail').value.trim(),
         current_password: document.getElementById('inputCurrentPassword').value,
         new_password: newPw,
       }),

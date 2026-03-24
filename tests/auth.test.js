@@ -150,3 +150,152 @@ describe('Auth guard — unauthenticated access to protected routes', () => {
     expect(res.status).toBe(401);
   });
 });
+
+// ─── POST /api/auth/forgot-password ──────────────────────────────────────────
+describe('POST /api/auth/forgot-password', () => {
+  const NEUTRAL = 'If an account exists for that username or email, a reset link has been sent.';
+
+  test('always returns 200 and neutral message for unknown user', async () => {
+    const res = await request(app)
+      .post('/api/auth/forgot-password')
+      .send({ identifier: 'nobody' });
+    expect(res.status).toBe(200);
+    expect(res.body.message).toBe(NEUTRAL);
+  });
+
+  test('always returns 200 and neutral message for technician account', async () => {
+    const res = await request(app)
+      .post('/api/auth/forgot-password')
+      .send({ identifier: 'tech1' });
+    expect(res.status).toBe(200);
+    expect(res.body.message).toBe(NEUTRAL);
+  });
+
+  test('returns 200 and neutral message for admin without email set', async () => {
+    // The seeded admin has no email, so no reset is sent — but response is still neutral
+    const res = await request(app)
+      .post('/api/auth/forgot-password')
+      .send({ identifier: 'admin' });
+    expect(res.status).toBe(200);
+    expect(res.body.message).toBe(NEUTRAL);
+  });
+
+  test('empty identifier returns neutral message (not 400)', async () => {
+    const res = await request(app)
+      .post('/api/auth/forgot-password')
+      .send({ identifier: '' });
+    expect(res.status).toBe(200);
+    expect(res.body.message).toBe(NEUTRAL);
+  });
+
+  test('missing identifier returns neutral message', async () => {
+    const res = await request(app)
+      .post('/api/auth/forgot-password')
+      .send({});
+    expect(res.status).toBe(200);
+    expect(res.body.message).toBe(NEUTRAL);
+  });
+});
+
+// ─── POST /api/auth/reset-password ───────────────────────────────────────────
+describe('POST /api/auth/reset-password', () => {
+  const crypto = require('crypto');
+  const db = require('../db/database');
+
+  function plantToken(userId, rawToken, expiresOffset = 3600000) {
+    const hash = crypto.createHash('sha256').update(rawToken).digest('hex');
+    db.prepare('UPDATE users SET reset_token = ?, reset_token_expires = ? WHERE id = ?')
+      .run(hash, Date.now() + expiresOffset, userId);
+  }
+
+  function clearToken(userId) {
+    db.prepare('UPDATE users SET reset_token = NULL, reset_token_expires = NULL WHERE id = ?').run(userId);
+  }
+
+  test('valid token updates password and clears token', async () => {
+    const user = db.prepare("SELECT id FROM users WHERE username = 'admin'").get();
+    const raw = 'validtoken1234567890abcdef';
+    plantToken(user.id, raw);
+
+    const res = await request(app)
+      .post('/api/auth/reset-password')
+      .send({ token: raw, newPassword: 'newpassword99' });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveProperty('message');
+
+    // Token should be cleared
+    const updated = db.prepare('SELECT reset_token FROM users WHERE id = ?').get(user.id);
+    expect(updated.reset_token).toBeNull();
+
+    // Can now log in with the new password
+    const login = await request(app)
+      .post('/api/auth/login')
+      .send({ username: 'admin', password: 'newpassword99' });
+    expect(login.status).toBe(200);
+
+    // Restore original password for other tests
+    const bcrypt = require('bcryptjs');
+    const hash = bcrypt.hashSync('admin123', 10);
+    db.prepare('UPDATE users SET password = ? WHERE id = ?').run(hash, user.id);
+  });
+
+  test('expired token returns 400', async () => {
+    const user = db.prepare("SELECT id FROM users WHERE username = 'admin'").get();
+    const raw = 'expiredtoken9999';
+    plantToken(user.id, raw, -1000); // already expired
+
+    const res = await request(app)
+      .post('/api/auth/reset-password')
+      .send({ token: raw, newPassword: 'newpassword99' });
+
+    expect(res.status).toBe(400);
+    expect(res.body).toHaveProperty('error');
+    clearToken(user.id);
+  });
+
+  test('invalid token returns 400', async () => {
+    const res = await request(app)
+      .post('/api/auth/reset-password')
+      .send({ token: 'totallyinvalidtoken', newPassword: 'newpassword99' });
+    expect(res.status).toBe(400);
+  });
+
+  test('token reuse returns 400', async () => {
+    const user = db.prepare("SELECT id FROM users WHERE username = 'admin'").get();
+    const raw = 'reuse-token-abc123';
+    plantToken(user.id, raw);
+
+    // First use — succeeds
+    await request(app)
+      .post('/api/auth/reset-password')
+      .send({ token: raw, newPassword: 'firstReset99' });
+
+    // Second use — should fail
+    const res = await request(app)
+      .post('/api/auth/reset-password')
+      .send({ token: raw, newPassword: 'secondReset99' });
+
+    expect(res.status).toBe(400);
+
+    // Restore
+    const bcrypt = require('bcryptjs');
+    const hash = bcrypt.hashSync('admin123', 10);
+    db.prepare('UPDATE users SET password = ? WHERE id = ?').run(hash, user.id);
+  });
+
+  test('password shorter than 8 chars returns 400', async () => {
+    const res = await request(app)
+      .post('/api/auth/reset-password')
+      .send({ token: 'anytoken', newPassword: 'short' });
+    expect(res.status).toBe(400);
+    expect(res.body).toHaveProperty('error');
+  });
+
+  test('missing token returns 400', async () => {
+    const res = await request(app)
+      .post('/api/auth/reset-password')
+      .send({ newPassword: 'newpassword99' });
+    expect(res.status).toBe(400);
+  });
+});

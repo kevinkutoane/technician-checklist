@@ -409,3 +409,202 @@ describe('GET /api/audit-log', () => {
     expect(Array.isArray(res.body)).toBe(true);
   });
 });
+
+// ═══ ADMINS ═══════════════════════════════════════════════════════════════════
+
+describe('GET /api/admins', () => {
+  test('admin gets 200 with array of admin objects', async () => {
+    const res = await request(app).get('/api/admins').set('Cookie', adminCookie);
+    expect(res.status).toBe(200);
+    expect(Array.isArray(res.body)).toBe(true);
+    expect(res.body.length).toBeGreaterThan(0);
+    expect(res.body[0]).toHaveProperty('username');
+    expect(res.body[0]).toHaveProperty('isSelf');
+  });
+
+  test('response contains isSelf=true for the requesting admin', async () => {
+    const res = await request(app).get('/api/admins').set('Cookie', adminCookie);
+    expect(res.status).toBe(200);
+    const self = res.body.find(a => a.username === 'admin');
+    expect(self).toBeDefined();
+    expect(self.isSelf).toBe(true);
+  });
+
+  test('technician gets 403', async () => {
+    const res = await request(app).get('/api/admins').set('Cookie', techCookie);
+    expect(res.status).toBe(403);
+  });
+
+  test('unauthenticated request gets 401', async () => {
+    const res = await request(app).get('/api/admins');
+    expect(res.status).toBe(401);
+  });
+});
+
+describe('POST /api/admins', () => {
+  const newAdmin = { username: 'testadmin', password: 'secure123', full_name: 'Test Admin', email: 'testadmin@example.com' };
+
+  afterEach(async () => {
+    // Clean up created admin
+    const db = require('../db/database');
+    db.prepare("DELETE FROM users WHERE username = 'testadmin'").run();
+  });
+
+  test('admin can create a new admin (201)', async () => {
+    const res = await request(app)
+      .post('/api/admins')
+      .set('Cookie', adminCookie)
+      .send(newAdmin);
+    expect(res.status).toBe(201);
+    expect(res.body).toHaveProperty('id');
+  });
+
+  test('creates admin without email (optional field)', async () => {
+    const res = await request(app)
+      .post('/api/admins')
+      .set('Cookie', adminCookie)
+      .send({ username: 'testadmin', password: 'secure123', full_name: 'Test Admin' });
+    expect(res.status).toBe(201);
+  });
+
+  test('duplicate username returns 400', async () => {
+    // Create first
+    await request(app).post('/api/admins').set('Cookie', adminCookie).send(newAdmin);
+    // Create duplicate
+    const res = await request(app)
+      .post('/api/admins')
+      .set('Cookie', adminCookie)
+      .send(newAdmin);
+    expect(res.status).toBe(400);
+    expect(res.body).toHaveProperty('error');
+  });
+
+  test('missing username returns 400', async () => {
+    const res = await request(app)
+      .post('/api/admins')
+      .set('Cookie', adminCookie)
+      .send({ password: 'secure123', full_name: 'Test Admin' });
+    expect(res.status).toBe(400);
+  });
+
+  test('missing password returns 400', async () => {
+    const res = await request(app)
+      .post('/api/admins')
+      .set('Cookie', adminCookie)
+      .send({ username: 'testadmin', full_name: 'Test Admin' });
+    expect(res.status).toBe(400);
+  });
+
+  test('missing full_name returns 400', async () => {
+    const res = await request(app)
+      .post('/api/admins')
+      .set('Cookie', adminCookie)
+      .send({ username: 'testadmin', password: 'secure123' });
+    expect(res.status).toBe(400);
+  });
+
+  test('technician cannot create admin (403)', async () => {
+    const res = await request(app)
+      .post('/api/admins')
+      .set('Cookie', techCookie)
+      .send(newAdmin);
+    expect(res.status).toBe(403);
+  });
+});
+
+describe('PUT /api/admins/:id', () => {
+  let tempAdminId;
+
+  beforeEach(async () => {
+    const res = await request(app)
+      .post('/api/admins')
+      .set('Cookie', adminCookie)
+      .send({ username: 'tempadmin', password: 'pass1234', full_name: 'Temp Admin' });
+    tempAdminId = res.body.id;
+  });
+
+  afterEach(() => {
+    const db = require('../db/database');
+    db.prepare("DELETE FROM users WHERE username = 'tempadmin'").run();
+  });
+
+  test('admin can update full_name and email', async () => {
+    const res = await request(app)
+      .put(`/api/admins/${tempAdminId}`)
+      .set('Cookie', adminCookie)
+      .send({ username: 'tempadmin', full_name: 'Updated Name', email: 'updated@example.com' });
+    expect(res.status).toBe(200);
+  });
+
+  test('password is optional in update', async () => {
+    const res = await request(app)
+      .put(`/api/admins/${tempAdminId}`)
+      .set('Cookie', adminCookie)
+      .send({ username: 'tempadmin', full_name: 'No PW Change' });
+    expect(res.status).toBe(200);
+  });
+
+  test('non-existent id returns 404', async () => {
+    const res = await request(app)
+      .put('/api/admins/99999')
+      .set('Cookie', adminCookie)
+      .send({ username: 'ghostadmin', full_name: 'Ghost' });
+    expect(res.status).toBe(404);
+  });
+
+  test('technician cannot update admin (403)', async () => {
+    const res = await request(app)
+      .put(`/api/admins/${tempAdminId}`)
+      .set('Cookie', techCookie)
+      .send({ full_name: 'Hacked' });
+    expect(res.status).toBe(403);
+  });
+});
+
+describe('DELETE /api/admins/:id', () => {
+  let tempAdminId;
+
+  beforeEach(async () => {
+    const res = await request(app)
+      .post('/api/admins')
+      .set('Cookie', adminCookie)
+      .send({ username: 'deleteadmin', password: 'pass1234', full_name: 'Delete Admin' });
+    tempAdminId = res.body.id;
+  });
+
+  afterEach(() => {
+    const db = require('../db/database');
+    db.prepare("DELETE FROM users WHERE username = 'deleteadmin'").run();
+  });
+
+  test('admin can delete another admin (200)', async () => {
+    const res = await request(app)
+      .delete(`/api/admins/${tempAdminId}`)
+      .set('Cookie', adminCookie);
+    expect(res.status).toBe(200);
+  });
+
+  test('admin cannot delete own account (400)', async () => {
+    const db = require('../db/database');
+    const self = db.prepare("SELECT id FROM users WHERE username = 'admin'").get();
+    const res = await request(app)
+      .delete(`/api/admins/${self.id}`)
+      .set('Cookie', adminCookie);
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/cannot delete your own account/i);
+  });
+
+  test('non-existent id returns 404', async () => {
+    const res = await request(app)
+      .delete('/api/admins/99999')
+      .set('Cookie', adminCookie);
+    expect(res.status).toBe(404);
+  });
+
+  test('technician cannot delete admin (403)', async () => {
+    const res = await request(app)
+      .delete(`/api/admins/${tempAdminId}`)
+      .set('Cookie', techCookie);
+    expect(res.status).toBe(403);
+  });
+});

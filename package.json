@@ -7,8 +7,8 @@
     "start": "node server.js",
     "seed": "node db/seed.js",
     "dev": "node server.js",
-    "test": "jest --runInBand --forceExit",
-    "test:coverage": "jest --runInBand --forceExit --coverage"
+    "test": "jest --runInBand",
+    "test:coverage": "jest --runInBand --coverage"
   },
   "jest": {
     "testEnvironment": "node",

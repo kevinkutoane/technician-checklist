@@ -148,6 +148,19 @@ try {
   // Column already exists — safe to ignore
 }
 
+// Add email and password-reset columns to users if they don't exist yet
+for (const col of [
+  "email TEXT",
+  "reset_token TEXT",
+  "reset_token_expires INTEGER",
+]) {
+  try {
+    db.exec(`ALTER TABLE users ADD COLUMN ${col}`);
+  } catch (_) {
+    // Column already exists — safe to ignore
+  }
+}
+
 // User preferences — key/value store per user (theme, alert_email, etc.)
 db.exec(`
   CREATE TABLE IF NOT EXISTS user_preferences (

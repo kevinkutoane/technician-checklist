@@ -34,6 +34,7 @@ function validOnboarding(overrides = {}) {
     employee_name: 'Alice Mokoena',
     laptop_serial_number: 'SN-ABC-123',
     sim_card_number: '0821234567',
+    asset_tag: 'IT-2026-0042',
     dongle: true,
     laptop_charger: true,
     laptop_bag: false,
@@ -141,6 +142,28 @@ describe('POST /api/onboarding', () => {
       .post('/api/onboarding')
       .send(validOnboarding());
     expect(res.status).toBe(401);
+  });
+
+  test('asset_tag is stored and returned', async () => {
+    const res = await request(app)
+      .post('/api/onboarding')
+      .set('Cookie', techCookie)
+      .send(validOnboarding({ asset_tag: 'IT-2026-TEST' }));
+    expect(res.status).toBe(201);
+    const db = getDb();
+    const row = db.prepare('SELECT asset_tag FROM asset_agreements WHERE id = ?').get(res.body.id);
+    expect(row.asset_tag).toBe('IT-2026-TEST');
+  });
+
+  test('invalid photo_data (non data:image/ prefix) is silently stripped', async () => {
+    const res = await request(app)
+      .post('/api/onboarding')
+      .set('Cookie', techCookie)
+      .send(validOnboarding({ photo_data: 'javascript:alert(1)' }));
+    expect(res.status).toBe(201);
+    const db = getDb();
+    const row = db.prepare('SELECT photo_data FROM asset_agreements WHERE id = ?').get(res.body.id);
+    expect(row.photo_data).toBe('');
   });
 });
 

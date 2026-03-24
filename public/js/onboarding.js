@@ -2,6 +2,8 @@
 
 let currentUser = null;
 let signaturePad = null;
+let cameraStream = null;
+let photo_data = '';
 
 function initSignaturePad() {
   const canvas = document.getElementById('signatureCanvas');
@@ -25,6 +27,93 @@ function initSignaturePad() {
 
   document.getElementById('clearSignatureBtn').addEventListener('click', () => {
     signaturePad.clear();
+  });
+}
+
+// ─── Camera / Photo Logic ───────────────────────────────────────────────────
+function showCameraState(state) {
+  document.getElementById('cameraPrompt').classList.toggle('hidden', state !== 'prompt');
+  document.getElementById('cameraLive').classList.toggle('hidden',   state !== 'live');
+  document.getElementById('cameraPreview').classList.toggle('hidden', state !== 'preview');
+}
+
+function stopStream() {
+  if (cameraStream) {
+    cameraStream.getTracks().forEach(t => t.stop());
+    cameraStream = null;
+  }
+}
+
+function updatePhotoDownload() {
+  const a = document.getElementById('downloadPhotoBtn');
+  if (!a) return;
+  const nameRaw = document.getElementById('employeeName').value.trim() || 'staff';
+  a.download = nameRaw.replace(/\s+/g, '-').toLowerCase() + '-photo.png';
+  a.href = photo_data;
+}
+
+function initCamera() {
+  const openBtn    = document.getElementById('openCameraBtn');
+  const uploadBtn  = document.getElementById('uploadPhotoBtn');
+  const fileInput  = document.getElementById('photoFileInput');
+  const captureBtn = document.getElementById('capturePhotoBtn');
+  const cancelBtn  = document.getElementById('cancelCameraBtn');
+  const retakeBtn  = document.getElementById('retakePhotoBtn');
+  const video      = document.getElementById('cameraVideo');
+  if (!openBtn) return;
+
+  openBtn.addEventListener('click', async () => {
+    try {
+      cameraStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false });
+      video.srcObject = cameraStream;
+      showCameraState('live');
+    } catch (_) {
+      // getUserMedia unavailable — fall through to file picker
+      fileInput.click();
+    }
+  });
+
+  uploadBtn.addEventListener('click', () => fileInput.click());
+
+  fileInput.addEventListener('change', () => {
+    const file = fileInput.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      photo_data = ev.target.result;
+      document.getElementById('photoPreview').src = photo_data;
+      updatePhotoDownload();
+      showCameraState('preview');
+    };
+    reader.readAsDataURL(file);
+  });
+
+  captureBtn.addEventListener('click', () => {
+    const canvas  = document.getElementById('photoCanvas');
+    canvas.width  = video.videoWidth;
+    canvas.height = video.videoHeight;
+    canvas.getContext('2d').drawImage(video, 0, 0);
+    photo_data = canvas.toDataURL('image/png');
+    stopStream();
+    document.getElementById('photoPreview').src = photo_data;
+    updatePhotoDownload();
+    showCameraState('preview');
+  });
+
+  cancelBtn.addEventListener('click', () => {
+    stopStream();
+    showCameraState('prompt');
+  });
+
+  retakeBtn.addEventListener('click', () => {
+    photo_data = '';
+    document.getElementById('photoPreview').src = '';
+    fileInput.value = '';
+    showCameraState('prompt');
+  });
+
+  document.getElementById('employeeName').addEventListener('input', () => {
+    if (photo_data) updatePhotoDownload();
   });
 }
 
@@ -54,6 +143,7 @@ document.getElementById('submitBtn').addEventListener('click', async () => {
     employee_name,
     laptop_serial_number: document.getElementById('laptopSerialNumber').value.trim(),
     sim_card_number: document.getElementById('simCardNumber').value.trim(),
+    asset_tag: document.getElementById('assetTag').value.trim(),
     dongle: document.getElementById('dongle').checked,
     laptop_charger: document.getElementById('laptopCharger').checked,
     laptop_bag: document.getElementById('laptopBag').checked,
@@ -61,6 +151,7 @@ document.getElementById('submitBtn').addEventListener('click', async () => {
     monitor: document.getElementById('monitor').checked,
     keyboard: document.getElementById('keyboard').checked,
     signature_data,
+    photo_data,
   };
 
   const btn = document.getElementById('submitBtn');
@@ -77,9 +168,13 @@ document.getElementById('submitBtn').addEventListener('click', async () => {
     successEl.innerHTML = `Asset Agreement saved successfully! &nbsp;<a href="/api/onboarding/export?id=${downloadId}" target="_blank" class="btn btn-sm btn-secondary" style="vertical-align:middle">&#128196; Download PDF</a>`;
     successEl.classList.remove('hidden');
     
-    // Reset form and signature pad
+    // Reset form, signature pad, and camera
     document.getElementById('assetAgreementForm').reset();
     if (signaturePad) signaturePad.clear();
+    stopStream();
+    photo_data = '';
+    document.getElementById('photoPreview').src = '';
+    showCameraState('prompt');
     
     await loadHistory();
   } catch (err) {
@@ -121,5 +216,6 @@ async function loadHistory() {
   currentUser = await initNav('/onboarding');
   if (!currentUser) return;
   initSignaturePad();
+  initCamera();
   await loadHistory();
 })();

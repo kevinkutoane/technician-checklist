@@ -70,6 +70,11 @@
             </div>
           </div>
 
+          <div class="form-group mb-3">
+            <label class="form-label">Device Asset Tag</label>
+            <input type="text" class="form-control" id="assetTag" placeholder="e.g. IT-2026-0042" />
+          </div>
+
           <hr class="my-4" style="border-top: 1px solid var(--border);" />
           
           <h4 class="mb-3">Standard Equipment Included</h4>
@@ -103,6 +108,36 @@
                  <label for="keyboard">Keyboard</label>
                </div>
              </div>
+          </div>
+
+          <!-- Staff Portrait Photo / Camera -->
+          <div class="form-group mt-4">
+            <label class="form-label">Staff Portrait Photo</label>
+            <div id="cameraSection">
+              <div id="cameraPrompt">
+                <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+                  <button type="button" class="btn btn-secondary btn-sm" id="openCameraBtn">📷 Open Camera</button>
+                  <button type="button" class="btn btn-secondary btn-sm" id="uploadPhotoBtn">📁 Upload Photo</button>
+                  <input type="file" id="photoFileInput" accept="image/*" capture="user" style="display:none">
+                </div>
+                <small class="form-text" style="display:block;margin-top:4px;color:var(--text-muted)">Take or upload a portrait photo for Teams / LinkedIn</small>
+              </div>
+              <div id="cameraLive" class="hidden">
+                <video id="cameraVideo" autoplay playsinline style="width:100%;max-width:320px;border-radius:8px;background:#000;display:block;"></video>
+                <div style="margin-top:8px;display:flex;gap:8px;">
+                  <button type="button" class="btn btn-primary btn-sm" id="capturePhotoBtn">📸 Capture</button>
+                  <button type="button" class="btn btn-secondary btn-sm" id="cancelCameraBtn">Cancel</button>
+                </div>
+              </div>
+              <div id="cameraPreview" class="hidden">
+                <img id="photoPreview" alt="Staff portrait" style="max-width:200px;max-height:240px;border-radius:8px;border:2px solid var(--border);display:block;" />
+                <div style="margin-top:8px;display:flex;gap:8px;">
+                  <a id="downloadPhotoBtn" class="btn btn-sm btn-secondary" download="staff-photo.png">⬇️ Download Photo</a>
+                  <button type="button" class="btn btn-sm btn-secondary" id="retakePhotoBtn">🔄 Retake</button>
+                </div>
+              </div>
+              <canvas id="photoCanvas" style="display:none;"></canvas>
+            </div>
           </div>
 
           <div class="alert alert-info mt-4">

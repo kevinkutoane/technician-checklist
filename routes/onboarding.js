@@ -51,7 +51,7 @@ router.post('/', (req, res) => {
   const {
     employee_name, laptop_serial_number, sim_card_number,
     dongle, laptop_charger, laptop_bag, mouse, monitor, keyboard,
-    signature_data,
+    signature_data, asset_tag, photo_data,
   } = req.body;
 
   if (!employee_name) {
@@ -64,6 +64,11 @@ router.post('/', (req, res) => {
     safeSignature = signature_data;
   }
 
+  let safePhoto = '';
+  if (photo_data && typeof photo_data === 'string' && photo_data.startsWith('data:image/')) {
+    safePhoto = photo_data;
+  }
+
   const submission_date = new Date().toISOString().slice(0, 10);
   const technician_id = req.session.user.id;
 
@@ -71,9 +76,9 @@ router.post('/', (req, res) => {
     INSERT INTO asset_agreements (
       technician_id, employee_name, laptop_serial_number, sim_card_number,
       dongle, laptop_charger, laptop_bag, mouse, monitor, keyboard,
-      submission_date, signature_data
+      submission_date, signature_data, asset_tag, photo_data
     ) VALUES (
-      ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+      ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
     )
   `);
 
@@ -82,7 +87,7 @@ router.post('/', (req, res) => {
       technician_id, employee_name.trim(), (laptop_serial_number || '').trim(), (sim_card_number || '').trim(),
       dongle ? 1 : 0, laptop_charger ? 1 : 0, laptop_bag ? 1 : 0,
       mouse ? 1 : 0, monitor ? 1 : 0, keyboard ? 1 : 0,
-      submission_date, safeSignature
+      submission_date, safeSignature, (asset_tag || '').trim(), safePhoto
     );
     logAudit(req, 'asset_agreement.submit', 'asset_agreement', result.lastInsertRowid,
       `Employee: ${employee_name.trim()}`);
@@ -116,6 +121,19 @@ router.get('/export', (req, res) => {
   res.setHeader('Content-Disposition', `attachment; filename="asset-agreement-${submission.id}.pdf"`);
   doc.pipe(res);
 
+  // Staff portrait photo — embed top-right if available
+  if (submission.photo_data && submission.photo_data.startsWith('data:image/')) {
+    try {
+      const photoBase64 = submission.photo_data.split(',')[1];
+      const photoBuffer = Buffer.from(photoBase64, 'base64');
+      doc.save();
+      doc.rect(420, 30, 110, 140).stroke('#d1d5db');
+      doc.image(photoBuffer, 422, 32, { width: 106, height: 136 });
+      doc.fontSize(8).fillColor('#9ca3af').text('Staff Photo', 420, 175, { width: 110, align: 'center' });
+      doc.restore();
+    } catch (_) { /* skip photo if conversion fails */ }
+  }
+
   doc.fontSize(22).fillColor('#2563eb').text('Asset Agreement', { align: 'center' });
   doc.fontSize(11).fillColor('#6b7280').text(`Date: ${submission.submission_date}  |  Issued by: ${submission.technician_name}`, { align: 'center' });
   doc.moveDown();
@@ -124,6 +142,7 @@ router.get('/export', (req, res) => {
   doc.moveDown(0.4);
   doc.fontSize(11).fillColor('#374151');
   doc.text(`Employee Name: ${submission.employee_name}`);
+  if (submission.asset_tag) doc.text(`Asset Tag: ${submission.asset_tag}`);
   if (submission.laptop_serial_number) doc.text(`Laptop Serial Number: ${submission.laptop_serial_number}`);
   if (submission.sim_card_number) doc.text(`SIM Card Number: ${submission.sim_card_number}`);
   doc.moveDown();

@@ -44,33 +44,57 @@ async function loadChecklistData() {
 
     // Check for existing submission
     const date = submissionDateInput.value;
-    const params = new URLSearchParams({
-      classroom_id: classroomId,
-      technician_id: currentUser.id,
-      date,
-    });
-    const existing = await apiFetch(`/api/checklists?${params}`);
+    const today = new Date().toISOString().slice(0, 10);
     const existingAlert = document.getElementById('existingAlert');
-    if (existing.length > 0) {
-      existingAlert.classList.remove('hidden');
-      // Show who else submitted this classroom today
-      const detailEl = document.getElementById('existingAlertDetail');
-      if (detailEl && statusData.length) {
-        const room = statusData.find((c) => String(c.id) === String(classroomId));
-        if (room && room.submissions.length) {
-          detailEl.innerHTML = room.submissions.map((s) => {
+    const detailEl    = document.getElementById('existingAlertDetail');
+    const msgEl       = document.getElementById('existingAlertMsg');
+
+    if (date === today) {
+      // For today: statusData (from dashboard API) contains submissions for ALL techs
+      const room  = statusData.find((c) => String(c.id) === String(classroomId));
+      const subs  = room ? room.submissions : [];
+      const others = subs.filter((s) => s.technician_id !== currentUser.id);
+      const isMine = subs.some((s) => s.technician_id === currentUser.id);
+
+      if (subs.length > 0) {
+        existingAlert.classList.remove('hidden');
+        if (msgEl) {
+          if (others.length > 0 && !isMine) {
+            msgEl.textContent = 'This classroom was already checked by another technician today.';
+          } else if (others.length > 0 && isMine) {
+            msgEl.textContent = 'This classroom has already been checked today (including by you). Submitting again will overwrite your entry.';
+          } else {
+            msgEl.textContent = 'You already submitted a checklist for this classroom today. Submitting again will overwrite it.';
+          }
+        }
+        if (detailEl) {
+          detailEl.innerHTML = subs.map((s) => {
             const isMe = s.technician_id === currentUser.id;
             const time = s.submitted_at
               ? new Date(s.submitted_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
               : '';
-            return `<div>${isMe ? '<strong>You</strong>' : esc(s.technician_name)} submitted at ${time}</div>`;
+            const nameHtml = isMe
+              ? '<strong>You</strong>'
+              : `<strong>${esc(s.technician_name)}</strong>`;
+            return `<div>👤 ${nameHtml} &mdash; checked in at ${time}</div>`;
           }).join('');
-        } else {
-          detailEl.innerHTML = '';
         }
+      } else {
+        existingAlert.classList.add('hidden');
+        if (detailEl) detailEl.innerHTML = '';
       }
     } else {
-      existingAlert.classList.add('hidden');
+      // For past/future dates: check current user's own submission via API
+      const params = new URLSearchParams({ classroom_id: classroomId, technician_id: currentUser.id, date });
+      const existing = await apiFetch(`/api/checklists?${params}`);
+      if (existing.length > 0) {
+        existingAlert.classList.remove('hidden');
+        if (msgEl) msgEl.textContent = 'You already submitted a checklist for this classroom on this date. Submitting again will overwrite it.';
+        if (detailEl) detailEl.innerHTML = '';
+      } else {
+        existingAlert.classList.add('hidden');
+        if (detailEl) detailEl.innerHTML = '';
+      }
     }
 
     renderEquipmentList(selectedEquipment);

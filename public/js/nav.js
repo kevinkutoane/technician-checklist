@@ -70,6 +70,174 @@ async function initNav(activeHref) {
     window.location.href = '/logout';
   });
 
+  // ─── Help Button & Modal ─────────────────────────────────────────────────
+  (function injectHelp(role) {
+    const logoutBtn = document.getElementById('logoutBtn');
+    if (!logoutBtn) return;
+
+    const helpBtn = document.createElement('button');
+    helpBtn.id = 'helpBtn';
+    helpBtn.className = 'btn btn-block btn-sm';
+    helpBtn.style.cssText = 'background:rgba(255,255,255,0.10);color:rgba(255,255,255,0.85);border:1px solid rgba(255,255,255,0.18);margin-bottom:0.5rem';
+    helpBtn.textContent = '❓ Help';
+    logoutBtn.parentElement.insertBefore(helpBtn, logoutBtn);
+
+    const TABS = [
+      {
+        id: 'hDashboard', label: '📊 Dashboard',
+        html: `<p><strong>Your central hub</strong> — view today's classroom coverage, submission history, flagged equipment and more.</p>
+<h4>Key sections</h4>
+<ul>
+  <li><strong>Today's Coverage</strong> — live view of which rooms have been checked and by whom. Auto-refreshes every 30 s.</li>
+  <li><strong>Quick Actions</strong> (technicians) — shortcuts to Checklist, Asset Agreement and QA forms.</li>
+  <li><strong>Stats bar</strong> — at-a-glance counts for checks, flags, agreements and QA runs today.</li>
+  <li><strong>Filter &amp; Export</strong> — narrow by date range, classroom or technician, then export to PDF.</li>
+  <li><strong>Charts</strong> (admins) — daily pulse, equipment health mix, top-maintenance classrooms and technician activity for the last 7–14 days.</li>
+</ul>
+<h4>Tips</h4>
+<ul>
+  <li>Unchecked classrooms appear in an orange alert visible to admins.</li>
+  <li>Apply filters before clicking <em>Export PDF</em> to download a filtered report.</li>
+</ul>`
+      },
+      {
+        id: 'hChecklist', label: '✅ Checklist',
+        html: `<p><strong>Daily classroom equipment check</strong> — record the status of every item in a classroom.</p>
+<h4>How to submit</h4>
+<ol>
+  <li>Select the <strong>Classroom</strong> from the dropdown.</li>
+  <li>Confirm or change the <strong>Date</strong> (defaults to today).</li>
+  <li>For each item choose a status:
+    <ul>
+      <li>✅ <strong>Working</strong> — functioning normally.</li>
+      <li>❌ <strong>Not Working</strong> — completely non-functional.</li>
+      <li>⚠️ <strong>Needs Repair</strong> — partial fault or minor issue.</li>
+    </ul>
+  </li>
+  <li>Add optional notes per item, then fill in <em>General Notes</em> if needed.</li>
+  <li>Click <strong>Submit Checklist</strong>.</li>
+</ol>
+<h4>Tips</h4>
+<ul>
+  <li>If another technician already checked a classroom today, an orange banner shows their name and check-in time.</li>
+  <li>Notes from your most recent previous submission are pre-filled to save time.</li>
+  <li>Flagged items (Not Working / Needs Repair) automatically trigger an email alert to the admin.</li>
+  <li>Re-submitting overwrites your earlier entry for that classroom and date.</li>
+</ul>`
+      },
+      {
+        id: 'hAsset', label: '💻 Asset Agreement',
+        html: `<p><strong>Issue IT equipment to an employee</strong> — creates a signed digital agreement record.</p>
+<h4>How to complete</h4>
+<ol>
+  <li>Enter the <strong>Employee Name</strong> (required).</li>
+  <li>Fill in <strong>Laptop Serial Number</strong> and <strong>SIM Card Number</strong> where applicable.</li>
+  <li>Tick the equipment items being issued (Dongle, Charger, Bag, Mouse, Monitor, Keyboard).</li>
+  <li>Have the employee sign in the <strong>Signature</strong> box. Use <em>Clear Signature</em> to redo.</li>
+  <li>Click <strong>Submit &amp; Save Agreement</strong>.</li>
+</ol>
+<h4>Tips</h4>
+<ul>
+  <li>The agreement includes a standard return-on-termination clause.</li>
+  <li>Admins can view past agreements in Admin → <em>Asset Agreements</em> tab.</li>
+</ul>`
+      },
+      {
+        id: 'hQA', label: '🔍 QA Checklist',
+        html: `<p><strong>New-machine setup verification</strong> — confirm a laptop was configured correctly before handover.</p>
+<h4>How to complete</h4>
+<ol>
+  <li>Enter the <strong>Username</strong> the machine is being set up for (required).</li>
+  <li>Optionally enter <strong>Machine Serial #</strong> and <strong>Call Ref #</strong>.</li>
+  <li>Toggle each task <strong>ON</strong> once it is done. Items are grouped by category (Backup &amp; Restore, System Config, Applications, etc.).</li>
+  <li>Add any <strong>Notes</strong> at the bottom, then click <strong>Submit QA Checklist</strong>.</li>
+</ol>
+<h4>Tips</h4>
+<ul>
+  <li>You can submit a partial QA and update it later by re-submitting for the same machine.</li>
+  <li>Completed records appear in Dashboard → <em>Recent QA Checklists</em>.</li>
+</ul>`
+      },
+    ];
+
+    if (role === 'admin') {
+      TABS.push({
+        id: 'hAdmin', label: '⚙️ Admin',
+        html: `<p><strong>Manage the entire system</strong> — classrooms, equipment, users and all records.</p>
+<h4>Tabs at a glance</h4>
+<ul>
+  <li><strong>Overview</strong> — today's top stats, unchecked classrooms, recent flags.</li>
+  <li><strong>Classrooms</strong> — add, rename or delete classrooms.</li>
+  <li><strong>Equipment</strong> — manage the equipment list per classroom. Select a classroom first, then add/edit/delete items.</li>
+  <li><strong>Technicians</strong> — create, edit or deactivate technician accounts. Reset passwords by editing the account.</li>
+  <li><strong>Admins</strong> — manage admin accounts. Admins can reset their password via the Forgot Password link on the login page.</li>
+  <li><strong>Checklist Submissions</strong> — search and view all checklist records with full item detail.</li>
+  <li><strong>QA Submissions</strong> — browse all QA checklist records.</li>
+  <li><strong>Asset Agreements</strong> — view all issued-equipment agreements.</li>
+  <li><strong>Audit Log</strong> — append-only log of every action performed in the system.</li>
+</ul>
+<h4>Tips</h4>
+<ul>
+  <li>Deleting a classroom or user is permanent and cascades to all related records — use with caution.</li>
+  <li>The Audit Log cannot be edited or deleted by anyone.</li>
+</ul>`
+      });
+    }
+
+    TABS.push({
+      id: 'hSettings', label: '🔧 Settings',
+      html: `<p><strong>Manage your account and preferences.</strong></p>
+<h4>Profile tab</h4>
+<ul>
+  <li>Update your <strong>Display Name</strong>, <strong>Username</strong> and <strong>Email</strong>.</li>
+  <li><strong>Change Password</strong> — enter your current password, then the new one (min 8 characters).</li>
+</ul>
+<h4>Preferences tab</h4>
+<ul>
+  <li>Toggle <strong>Dark Mode</strong> — saved to your account and applied across all devices.</li>
+</ul>
+<h4>Notifications tab (admins only)</h4>
+<ul>
+  <li>Set the <strong>Flag Alert Email</strong> that receives alerts when broken equipment is logged.</li>
+  <li>Leave blank to use the system-wide <code>ALERT_EMAIL</code> environment variable.</li>
+</ul>`
+    });
+
+    const tabBtns = TABS.map((t, i) =>
+      `<button class="tab-btn${i === 0 ? ' active' : ''}" data-htab="${t.id}">${t.label}</button>`
+    ).join('');
+
+    const tabPanels = TABS.map((t, i) =>
+      `<div id="${t.id}" class="tab-content${i === 0 ? ' active' : ''}"><div class="help-body">${t.html}</div></div>`
+    ).join('');
+
+    const overlayEl = document.createElement('div');
+    overlayEl.id = 'helpModalOverlay';
+    overlayEl.className = 'modal-overlay';
+    overlayEl.innerHTML = `
+      <div class="modal" style="max-width:680px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem">
+          <h2 class="modal-title" style="margin:0">❓ Help &amp; Guide</h2>
+          <button id="helpModalClose" class="btn btn-secondary btn-sm" style="min-height:unset;padding:0.3rem 0.75rem">✕ Close</button>
+        </div>
+        <div class="tabs" style="flex-wrap:wrap;gap:0.5rem 0;margin-bottom:1.5rem">${tabBtns}</div>
+        <div style="max-height:55vh;overflow-y:auto;padding-right:4px">${tabPanels}</div>
+      </div>`;
+    document.body.appendChild(overlayEl);
+
+    helpBtn.addEventListener('click', () => overlayEl.classList.add('open'));
+    overlayEl.addEventListener('click', (e) => { if (e.target === overlayEl) overlayEl.classList.remove('open'); });
+    overlayEl.querySelector('#helpModalClose').addEventListener('click', () => overlayEl.classList.remove('open'));
+    overlayEl.querySelectorAll('[data-htab]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        overlayEl.querySelectorAll('[data-htab]').forEach((b) => b.classList.remove('active'));
+        overlayEl.querySelectorAll('.tab-content').forEach((c) => c.classList.remove('active'));
+        btn.classList.add('active');
+        overlayEl.querySelector('#' + btn.dataset.htab).classList.add('active');
+      });
+    });
+  })(user.role);
+
   return user;
 }
 

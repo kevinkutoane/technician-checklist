@@ -148,6 +148,15 @@ try {
   // Column already exists — safe to ignore
 }
 
+// Add asset_tag and photo_data columns if they don't exist yet
+for (const col of ["asset_tag TEXT DEFAULT ''", "photo_data TEXT DEFAULT ''"]) {
+  try {
+    db.exec(`ALTER TABLE asset_agreements ADD COLUMN ${col}`);
+  } catch (_) {
+    // Column already exists — safe to ignore
+  }
+}
+
 // Add email and password-reset columns to users if they don't exist yet
 for (const col of [
   "email TEXT",

@@ -128,15 +128,15 @@ router.post('/technicians', requireAdmin, async (req, res) => {
   if (!username || !username.trim() || !password || !full_name || !full_name.trim()) {
     return res.status(400).json({ error: 'username, password, and full_name are required' });
   }
-  if (password.length < 6) {
-    return res.status(400).json({ error: 'Password must be at least 6 characters' });
+  if (password.length < 8) {
+    return res.status(400).json({ error: 'Password must be at least 8 characters' });
   }
   const cleanEmail = email && typeof email === 'string' ? email.trim().toLowerCase() : null;
   if (cleanEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
     return res.status(400).json({ error: 'Invalid email address' });
   }
   try {
-    const hash = await bcrypt.hash(password, 10);
+    const hash = await bcrypt.hash(password, 12);
     const stmt = db.prepare(
       "INSERT INTO users (username, password, full_name, email, role) VALUES (?, ?, ?, ?, 'technician')"
     );
@@ -167,10 +167,10 @@ router.put('/technicians/:id', requireAdmin, async (req, res) => {
   try {
     let result;
     if (password && password.trim() !== '') {
-      if (password.length < 6) {
-        return res.status(400).json({ error: 'Password must be at least 6 characters' });
+      if (password.length < 8) {
+        return res.status(400).json({ error: 'Password must be at least 8 characters' });
       }
-      const hash = await bcrypt.hash(password, 10);
+      const hash = await bcrypt.hash(password, 12);
       result = db.prepare("UPDATE users SET username = ?, full_name = ?, email = ?, password = ? WHERE id = ? AND role = 'technician'").run(username.trim(), full_name.trim(), cleanEmail, hash, id);
     } else {
       result = db.prepare("UPDATE users SET username = ?, full_name = ?, email = ? WHERE id = ? AND role = 'technician'").run(username.trim(), full_name.trim(), cleanEmail, id);
@@ -222,15 +222,15 @@ router.post('/admins', requireAdmin, async (req, res) => {
   if (!username || !username.trim() || !password || !full_name || !full_name.trim()) {
     return res.status(400).json({ error: 'username, password, and full_name are required' });
   }
-  if (password.length < 6) {
-    return res.status(400).json({ error: 'Password must be at least 6 characters' });
+  if (password.length < 8) {
+    return res.status(400).json({ error: 'Password must be at least 8 characters' });
   }
   const cleanEmail = email && typeof email === 'string' ? email.trim().toLowerCase() : null;
   if (cleanEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
     return res.status(400).json({ error: 'Invalid email address' });
   }
   try {
-    const hash = await bcrypt.hash(password, 10);
+    const hash = await bcrypt.hash(password, 12);
     const result = db.prepare(
       "INSERT INTO users (username, password, full_name, email, role) VALUES (?, ?, ?, ?, 'admin')"
     ).run(username.trim(), hash, full_name.trim(), cleanEmail);
@@ -260,10 +260,10 @@ router.put('/admins/:id', requireAdmin, async (req, res) => {
   try {
     let result;
     if (password && password.trim() !== '') {
-      if (password.length < 6) {
-        return res.status(400).json({ error: 'Password must be at least 6 characters' });
+      if (password.length < 8) {
+        return res.status(400).json({ error: 'Password must be at least 8 characters' });
       }
-      const hash = await bcrypt.hash(password, 10);
+      const hash = await bcrypt.hash(password, 12);
       result = db.prepare("UPDATE users SET username = ?, full_name = ?, email = ?, password = ? WHERE id = ? AND role = 'admin'")
         .run(username.trim(), full_name.trim(), cleanEmail, hash, id);
     } else {
@@ -304,7 +304,7 @@ router.delete('/admins/:id', requireAdmin, (req, res) => {
 
 // GET /api/audit-log — admin only
 router.get('/audit-log', requireAdmin, (req, res) => {
-  const limit = Math.min(parseInt(req.query.limit || '100', 10), 500);
+  const limit = Math.min(parseInt(req.query.limit, 10) || 100, 500);
   const entries = db.prepare(`
     SELECT al.id, al.action, al.target_type, al.target_id, al.details,
            al.ip_address, al.created_at,

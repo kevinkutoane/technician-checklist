@@ -33,6 +33,8 @@ function setupTestDb() {
   // Wipe any existing data (safe for :memory: — tables already created by database.js)
   const tables = ['audit_log', 'checklist_items', 'checklist_submissions',
                   'asset_agreements', 'qa_submissions', 'equipment_loans',
+                  'week_ahead_events', 'week_ahead_uploads',
+                  'classroom_handovers', 'hybrid_setups',
                   'equipment', 'classrooms', 'users'];
   for (const t of tables) {
     db.prepare(`DELETE FROM ${t}`).run();

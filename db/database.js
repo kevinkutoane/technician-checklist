@@ -198,10 +198,97 @@ db.exec(`
   );
 `);
 
+// Classroom handovers — session readiness sign-off record
+db.exec(`
+  CREATE TABLE IF NOT EXISTS classroom_handovers (
+    id                          INTEGER PRIMARY KEY AUTOINCREMENT,
+    submitted_by_id             INTEGER NOT NULL,
+    handover_date               DATE    NOT NULL,
+    checking_start_time         TEXT    DEFAULT '',
+    class_start_time            TEXT    DEFAULT '',
+    classroom_id                INTEGER NOT NULL,
+    programme_name              TEXT    DEFAULT '',
+    technician_name             TEXT    DEFAULT '',
+    faculty_name                TEXT    DEFAULT '',
+    session_producer_name       TEXT    DEFAULT '',
+    programme_manager_name      TEXT    DEFAULT '',
+    services_data               TEXT    DEFAULT '{}',
+    faculty_arrived             TEXT    DEFAULT '',
+    faculty_comments            TEXT    DEFAULT '',
+    faculty_signature           TEXT    DEFAULT '',
+    session_producer_arrived    TEXT    DEFAULT '',
+    session_producer_comments   TEXT    DEFAULT '',
+    session_producer_signature  TEXT    DEFAULT '',
+    programme_manager_arrived   TEXT    DEFAULT '',
+    programme_manager_comments  TEXT    DEFAULT '',
+    programme_manager_signature TEXT    DEFAULT '',
+    additional_comments         TEXT    DEFAULT '',
+    created_at                  DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (submitted_by_id) REFERENCES users(id),
+    FOREIGN KEY (classroom_id)   REFERENCES classrooms(id)
+  );
+`);
+
+// Hybrid classroom setups — per-day flag visible to all technicians
+db.exec(`
+  CREATE TABLE IF NOT EXISTS hybrid_setups (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    classroom_id INTEGER NOT NULL,
+    setup_date   DATE    NOT NULL,
+    set_by_id    INTEGER NOT NULL,
+    notes        TEXT    DEFAULT '',
+    created_at   DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(classroom_id, setup_date),
+    FOREIGN KEY (classroom_id) REFERENCES classrooms(id) ON DELETE CASCADE,
+    FOREIGN KEY (set_by_id)    REFERENCES users(id)
+  );
+  CREATE INDEX IF NOT EXISTS idx_hs_date ON hybrid_setups(setup_date);
+`);
+
+// Week-ahead schedule — uploaded XLSX events viewable on dashboard
+db.exec(`
+  CREATE TABLE IF NOT EXISTS week_ahead_uploads (
+    id               TEXT    PRIMARY KEY,
+    filename         TEXT    NOT NULL,
+    week_start       TEXT,
+    week_end         TEXT,
+    row_count        INTEGER DEFAULT 0,
+    uploaded_by_id   INTEGER NOT NULL,
+    created_at       DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (uploaded_by_id) REFERENCES users(id)
+  );
+
+  CREATE TABLE IF NOT EXISTS week_ahead_events (
+    id                      INTEGER PRIMARY KEY AUTOINCREMENT,
+    event_date              TEXT    NOT NULL,
+    day_label               TEXT    DEFAULT '',
+    time_range              TEXT    DEFAULT '',
+    venue                   TEXT    DEFAULT '',
+    company_course          TEXT    DEFAULT '',
+    contact_person          TEXT    DEFAULT '',
+    pax_campus              INTEGER DEFAULT 0,
+    pax_zoom                INTEGER DEFAULT 0,
+    lecturer                TEXT    DEFAULT '',
+    syndicates_other_venues TEXT    DEFAULT '',
+    assigned_tech           TEXT    DEFAULT '',
+    it_support_required     TEXT    DEFAULT '',
+    upload_batch_id         TEXT    NOT NULL,
+    uploaded_by_id          INTEGER NOT NULL,
+    created_at              DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (upload_batch_id) REFERENCES week_ahead_uploads(id) ON DELETE CASCADE,
+    FOREIGN KEY (uploaded_by_id)  REFERENCES users(id)
+  );
+  CREATE INDEX IF NOT EXISTS idx_wae_date  ON week_ahead_events(event_date);
+  CREATE INDEX IF NOT EXISTS idx_wae_batch ON week_ahead_events(upload_batch_id);
+`);
+
 // Performance indexes — keep queries fast as data grows
 db.exec(`
   CREATE INDEX IF NOT EXISTS idx_el_returned    ON equipment_loans(returned);
   CREATE INDEX IF NOT EXISTS idx_el_date        ON equipment_loans(loan_date);
+  CREATE INDEX IF NOT EXISTS idx_ch_date         ON classroom_handovers(handover_date);
+  CREATE INDEX IF NOT EXISTS idx_ch_submitted_by ON classroom_handovers(submitted_by_id);
+  CREATE INDEX IF NOT EXISTS idx_ch_classroom    ON classroom_handovers(classroom_id);
   CREATE INDEX IF NOT EXISTS idx_cs_date       ON checklist_submissions(submission_date);
   CREATE INDEX IF NOT EXISTS idx_cs_tech       ON checklist_submissions(technician_id);
   CREATE INDEX IF NOT EXISTS idx_cs_classroom  ON checklist_submissions(classroom_id);

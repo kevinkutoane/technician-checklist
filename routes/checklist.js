@@ -53,6 +53,9 @@ router.post('/', async (req, res) => {
   if (!Array.isArray(items) || items.length === 0) {
     return res.status(400).json({ error: 'At least one checklist item is required' });
   }
+  if (items.length > 200) {
+    return res.status(400).json({ error: 'Too many checklist items (max 200)' });
+  }
 
   const validStatuses = new Set(['working', 'not_working', 'needs_repair']);
   for (const item of items) {
@@ -134,12 +137,12 @@ router.post('/', async (req, res) => {
       const classroom = db.prepare('SELECT name FROM classrooms WHERE id = ?').get(classroom_id);
       const tech      = db.prepare('SELECT full_name FROM users WHERE id = ?').get(technician_id);
 
-      await sendFlagAlert(
+      sendFlagAlert(
         flagged.map((i) => ({ equipment_name: nameMap[i.equipment_id] || `#${i.equipment_id}`, status: i.status, notes: i.notes })),
         classroom ? classroom.name : String(classroom_id),
         tech ? tech.full_name : String(technician_id),
         submission_date
-      );
+      ).catch((e) => console.error('[mailer] sendFlagAlert failed:', e.message));
     }
 
     res.status(201).json(full);

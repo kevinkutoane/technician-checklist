@@ -3,18 +3,21 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Manage your profile, change your password and set appearance preferences." />
   <meta name="theme-color" content="#4f46e5" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <link rel="manifest" href="/manifest.json" />
+  <link rel="icon" href="/icons/icon.svg" type="image/svg+xml" />
   <link rel="apple-touch-icon" href="/icons/icon.svg" />
   <title>Settings – Technician Checklist</title>
   <link rel="stylesheet" href="/css/styles.css" />
+  <script>try{var _t=localStorage.getItem('opsHubTheme');if(_t)document.documentElement.setAttribute('data-theme',_t);}catch(e){}</script>
 </head>
 <body>
 
 <div class="app-layout">
-  <aside class="sidebar">
+  <aside class="sidebar" aria-label="Main navigation">
     <a class="sidebar-brand" href="/">
       <span class="icon">💻</span>
       <span>Ops Hub</span>
@@ -63,7 +66,7 @@
               <input class="form-control" type="email" id="inputEmail" autocomplete="email" placeholder="e.g. admin@example.com" />
               <small class="text-muted" style="font-size:0.8rem">Used for password reset emails (admin accounts only).</small>
             </div>
-            <div id="profileMsg" class="hidden" style="margin-bottom:.75rem"></div>
+            <div id="profileMsg" class="hidden" aria-live="polite" role="status" style="margin-bottom:.75rem"></div>
             <button class="btn btn-primary" type="submit">Save Profile</button>
           </form>
         </div>
@@ -83,7 +86,7 @@
               <label class="form-label" for="inputConfirmPassword">Confirm New Password</label>
               <input class="form-control" type="password" id="inputConfirmPassword" autocomplete="new-password" required minlength="8" />
             </div>
-            <div id="passwordMsg" class="hidden" style="margin-bottom:.75rem"></div>
+            <div id="passwordMsg" class="hidden" aria-live="polite" role="status" style="margin-bottom:.75rem"></div>
             <button class="btn btn-primary" type="submit">Change Password</button>
           </form>
         </div>
@@ -133,5 +136,6 @@
 
 <script src="/js/nav.js"></script>
 <script src="/js/settings.js"></script>
+<script>if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js').catch(()=>{});</script>
 </body>
 </html>

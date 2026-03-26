@@ -12,11 +12,14 @@ A mobile-friendly, session-authenticated web application that replaces a paper-b
 - **Classroom Checklist** — Select a classroom, set equipment status (Working / Needs Repair / Not Working), add notes, submit
 - **Asset Agreement (Onboarding)** — Log laptop/peripheral issuance with a digital signature capture
 - **QA Checklist** — 28-step IT setup verification form for new machines
-- **Dashboard** — Today's coverage tiles, submission history, flagged issues table, filter by date/classroom/technician, export to PDF
+- **Classroom Handover Form** — Session readiness log: 12 service checks (PC, projector, Wi-Fi, cables, microphones, cameras, Zoom/Teams, etc.) with Y/N status and comments, plus digital sign-off panels for Faculty, Session Producer, and Programme Manager (arrival time, comments, and signature capture)
+- **Hybrid Classroom Notifications** — Any technician can flag a classroom as a hybrid setup for the day (with an optional note); all users see a live "🎥 Hybrid Classrooms Today" card on the Dashboard and a 🎥 badge on the classroom coverage tile; flags are date-scoped and reset daily
+- **Week Ahead Schedule** — Technicians upload a weekly XLSX schedule (events with times, venues, programmes, contacts, tech assignments, IT support); all users see a "📅 Today's Schedule" card on the Dashboard; technicians manage uploads from a dedicated Week Ahead page with week navigation and day tabs; admins view all uploads in the Admin panel
+- **Dashboard** — Today's coverage tiles, today's schedule, submission history, flagged issues table, filter by date/classroom/technician, export to PDF
 - **Settings** — Change display name, username, email address, and password; toggle dark/light theme
 
 ### For Admins Only
-- **Admin Panel** — Full CRUD for classrooms, equipment, technicians, and admin accounts; view all checklist, QA, and onboarding submissions; audit log
+- **Admin Panel** — Full CRUD for classrooms, equipment, technicians, and admin accounts; view all checklist, QA, onboarding, and handover submissions; audit log
 - **Admins Management** — Create, edit, and delete admin accounts from the Admins tab; self-deletion is prevented; email address per admin enables password-reset flow
 - **Admin Overview Tab** — Daily at-a-glance: total classrooms / equipment / technicians, coverage today, unchecked classrooms, flagged items, most-problematic equipment (30-day trend), recent audit activity
 - **Dashboard Enhancements** — Coverage percentage stat, unchecked-classroom alert banner, data charts (daily pulse, equipment health mix, high-maintenance classrooms, technician performance, equipment trends)
@@ -35,6 +38,8 @@ A mobile-friendly, session-authenticated web application that replaces a paper-b
 | Security    | Helmet v8, CSRF (Origin check), bcrypt, rate limiting |
 | Email       | Nodemailer (SMTP)                     |
 | PDF export  | PDFKit                                |
+| XLSX parse  | SheetJS (`xlsx`)                      |
+| File upload | Multer (memory storage, 5 MB limit)   |
 | Frontend    | Vanilla JS, custom CSS (no framework) |
 
 ---
@@ -106,8 +111,11 @@ The app runs on **http://localhost:3000** by default.
 │   ├── admin.js               # Classrooms, equipment, technicians CRUD + audit log
 │   ├── checklist.js           # Checklist submission endpoints
 │   ├── dashboard.js           # Dashboard data, charts, export, admin-overview
+│   ├── handover.js          # Classroom handover form endpoints
+│   └── hybrid.js            # Hybrid classroom setup flag endpoints
 │   ├── onboarding.js          # Asset agreement endpoints
 │   ├── qa.js                  # QA checklist endpoints
+│   ├── weekahead.js           # Week ahead XLSX upload & schedule endpoints
 │   └── settings.js            # Profile & preferences endpoints
 ├── utils/
 │   ├── mailer.js              # Nodemailer — flag-alert and password-reset email helpers
@@ -118,20 +126,24 @@ The app runs on **http://localhost:3000** by default.
     │   ├── admin.js
     │   ├── checklist.js
     │   ├── dashboard.js
+    │   ├── handover.js
     │   ├── login.js
     │   ├── onboarding.js
     │   ├── qa.js
     │   ├── reset-password.js      # Forgot-password & reset-password page logic
-    │   └── settings.js
+    │   ├── settings.js
+    │   └── week-ahead.js          # Week ahead page — upload, week nav, day tabs
     └── pages/
         ├── admin.html
         ├── checklist.html
         ├── dashboard.html
+        ├── handover.html
         ├── login.html
         ├── onboarding.html
         ├── qa.html
         ├── reset-password.html    # Forgot-password request & token-based reset UI
-        └── settings.html
+        ├── settings.html
+        └── week-ahead.html        # Week ahead schedule viewer & upload page
 ```
 
 ---
@@ -149,6 +161,11 @@ The app runs on **http://localhost:3000** by default.
 | `qa_checklists`       | QA process submissions                              |
 | `user_preferences`    | Per-user key/value settings (theme, alert_email)    |
 | `audit_log`           | Admin action log                                    |
+| `equipment_loans`     | Temporary equipment loan records                    |
+| `classroom_handovers` | Session handover records — 12 service checks, 3 sign-off panels (Faculty, Session Producer, Programme Manager) with arrival time, comments, and signature |
+| `hybrid_setups`       | Per-day hybrid classroom flags — one record per classroom per date; shared across all technicians |
+| `week_ahead_uploads`  | Upload batch records — filename, date range, row count, uploader |
+| `week_ahead_events`   | Parsed schedule events — date, time, venue, programme, contacts, tech, IT support; cascades on batch delete |
 
 ---
 
@@ -189,6 +206,29 @@ The app runs on **http://localhost:3000** by default.
 | PUT    | `/api/admins/:id`     | admin | Update admin name, email, or password             |
 | DELETE | `/api/admins/:id`     | admin | Delete an admin (self-deletion returns 400)       |
 
+### Handover
+| Method | Path                    | Auth | Description                                                   |
+|--------|-------------------------|------|---------------------------------------------------------------|
+| GET    | `/api/handover`         | any  | List records, newest first; `?classroom_id=N&limit=N`         |
+| GET    | `/api/handover/:id`     | any  | Single record with `classroom_name`                           |
+| POST   | `/api/handover`         | any  | Create handover record; validates `classroom_id` and `handover_date`; strips invalid signature data |
+
+### Hybrid Setups
+| Method | Path               | Auth | Description                                                              |
+|--------|--------------------|------|--------------------------------------------------------------------------|
+| GET    | `/api/hybrid`      | any  | Today's hybrid classrooms; `?date=YYYY-MM-DD` for other dates            |
+| POST   | `/api/hybrid`      | any  | Flag a classroom hybrid for today; re-posting updates the note           |
+| DELETE | `/api/hybrid/:id`  | any  | Clear a hybrid flag; any authenticated user can clear                    |
+
+### Week Ahead
+| Method | Path                        | Auth       | Description                                                        |
+|--------|-----------------------------|------------|--------------------------------------------------------------------|
+| POST   | `/api/week-ahead/upload`    | technician | Upload XLSX schedule; auto-replaces events for overlapping dates   |
+| GET    | `/api/week-ahead`           | any        | Today's events (or `?date=YYYY-MM-DD`)                             |
+| GET    | `/api/week-ahead/week`      | any        | Full week from `?start=YYYY-MM-DD` (defaults to current Monday)   |
+| GET    | `/api/week-ahead/uploads`   | any        | Upload history (technician sees own, admin sees all)               |
+| DELETE | `/api/week-ahead/:batchId`  | any        | Delete batch; technician own only, admin any                       |
+
 ---
 
 ## Running Tests
@@ -197,6 +237,8 @@ The app runs on **http://localhost:3000** by default.
 npm test               # Jest
 npm run test:coverage  # With coverage report (≥85% line, ≥80% branch)
 ```
+
+> **243 tests** across 11 suites (auth, checklist, dashboard, middleware, onboarding, QA, admin, loans, handover, hybrid, weekahead).
 
 ---
 

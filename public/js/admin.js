@@ -2,7 +2,8 @@
 
 function statusBadge(status) {
   const labels = { working: '✅ Working', not_working: '❌ Not Working', needs_repair: '⚠️ Needs Repair' };
-  return `<span class="badge badge-${status}">${labels[status] || status}</span>`;
+  const safeClass = Object.prototype.hasOwnProperty.call(labels, status) ? status : 'unknown';
+  return `<span class="badge badge-${safeClass}">${labels[status] || esc(String(status))}</span>`;
 }
 
 let currentUser = null;
@@ -13,7 +14,7 @@ document.querySelectorAll('.tab-btn').forEach((btn) => {
     document.querySelectorAll('.tab-btn').forEach((b) => b.classList.remove('active'));
     document.querySelectorAll('.tab-content').forEach((c) => c.classList.remove('active'));
     btn.classList.add('active');
-    document.getElementById(`tab-${btn.dataset.tab}`).classList.add('active');
+    document.getElementById(`tab-${btn.dataset.tab}`)?.classList.add('active');
   });
 });
 
@@ -27,7 +28,7 @@ document.getElementById('closeTechnicianModal').addEventListener('click', () => 
 document.getElementById('closeAdminModal').addEventListener('click', () => closeModal('adminModal'));
 
 // Close modal on overlay click
-['classroomModal', 'equipmentModal', 'technicianModal', 'adminModal'].forEach((id) => {
+['classroomModal', 'equipmentModal', 'technicianModal', 'adminModal', 'handoverDetailModal'].forEach((id) => {
   document.getElementById(id).addEventListener('click', (e) => {
     if (e.target === e.currentTarget) closeModal(id);
   });
@@ -44,7 +45,7 @@ async function loadClassrooms() {
     renderClassrooms();
     populateClassroomSelects();
   } catch (err) {
-    el.innerHTML = `<div class="alert alert-danger">${err.message}</div>`;
+    el.innerHTML = `<div class="alert alert-danger">${esc(err.message)}</div>`;
   }
 }
 
@@ -66,7 +67,7 @@ function renderClassrooms() {
               <td>${esc(c.floor || '—')}</td>
               <td>
                 <button class="btn btn-secondary btn-sm" onclick="editClassroom(${c.id})">Edit</button>
-                <button class="btn btn-danger btn-sm" onclick="deleteClassroom(${c.id}, '${esc(c.name)}')">Delete</button>
+                <button class="btn btn-danger btn-sm" data-del-id="${c.id}" data-del-name="${esc(c.name)}">Delete</button>
               </td>
             </tr>
           `).join('')}
@@ -77,7 +78,7 @@ function renderClassrooms() {
 }
 
 function populateClassroomSelects() {
-  const selects = ['equipClassroomFilter', 'equipmentClassroom', 'subClassroomFilter'];
+  const selects = ['equipClassroomFilter', 'equipmentClassroom', 'subClassroomFilter', 'handoverClassroomFilter'];
   selects.forEach((selId) => {
     const sel = document.getElementById(selId);
     if (!sel) return;
@@ -124,11 +125,12 @@ window.deleteClassroom = async function (id, name) {
     await apiFetch(`/api/classrooms/${id}`, { method: 'DELETE' });
     await loadClassrooms();
   } catch (err) {
-    alert(`Error: ${err.message}`);
+    alert(`Error: ${esc(err.message)}`);
   }
 };
 
-document.getElementById('saveClassroomBtn').addEventListener('click', async () => {
+document.getElementById('saveClassroomBtn').addEventListener('click', async (e) => {
+  const btn = e.currentTarget;
   const id = document.getElementById('classroomId').value;
   const name = document.getElementById('classroomName').value.trim();
   const building = document.getElementById('classroomBuilding').value.trim();
@@ -137,7 +139,7 @@ document.getElementById('saveClassroomBtn').addEventListener('click', async () =
 
   if (!name) { errEl.textContent = 'Name is required'; errEl.classList.remove('hidden'); return; }
   errEl.classList.add('hidden');
-
+  btn.disabled = true;
   try {
     if (id) {
       await apiFetch(`/api/classrooms/${id}`, { method: 'PUT', body: JSON.stringify({ name, building, floor }) });
@@ -149,6 +151,8 @@ document.getElementById('saveClassroomBtn').addEventListener('click', async () =
   } catch (err) {
     errEl.textContent = err.message;
     errEl.classList.remove('hidden');
+  } finally {
+    btn.disabled = false;
   }
 });
 
@@ -168,7 +172,7 @@ async function loadEquipment(classroomId) {
     equipmentList = await apiFetch(`/api/equipment/${classroomId}`);
     renderEquipment(classroomId);
   } catch (err) {
-    el.innerHTML = `<div class="alert alert-danger">${err.message}</div>`;
+    el.innerHTML = `<div class="alert alert-danger">${esc(err.message)}</div>`;
   }
 }
 
@@ -189,7 +193,7 @@ function renderEquipment(classroomId) {
               <td>${esc(eq.description || '—')}</td>
               <td>
                 <button class="btn btn-secondary btn-sm" onclick="editEquipment(${eq.id}, ${classroomId})">Edit</button>
-                <button class="btn btn-danger btn-sm" onclick="deleteEquipment(${eq.id}, '${esc(eq.name)}', ${classroomId})">Delete</button>
+                <button class="btn btn-danger btn-sm" data-del-id="${eq.id}" data-del-name="${esc(eq.name)}" data-del-classroom="${classroomId}">Delete</button>
               </td>
             </tr>
           `).join('')}
@@ -229,11 +233,12 @@ window.deleteEquipment = async function (id, name, classroomId) {
     await apiFetch(`/api/equipment/${id}`, { method: 'DELETE' });
     await loadEquipment(classroomId);
   } catch (err) {
-    alert(`Error: ${err.message}`);
+    alert(`Error: ${esc(err.message)}`);
   }
 };
 
-document.getElementById('saveEquipmentBtn').addEventListener('click', async () => {
+document.getElementById('saveEquipmentBtn').addEventListener('click', async (e) => {
+  const btn = e.currentTarget;
   const id = document.getElementById('equipmentId').value;
   const classroom_id = document.getElementById('equipmentClassroom').value;
   const name = document.getElementById('equipmentName').value.trim();
@@ -243,7 +248,7 @@ document.getElementById('saveEquipmentBtn').addEventListener('click', async () =
   if (!classroom_id) { errEl.textContent = 'Classroom is required'; errEl.classList.remove('hidden'); return; }
   if (!name) { errEl.textContent = 'Name is required'; errEl.classList.remove('hidden'); return; }
   errEl.classList.add('hidden');
-
+  btn.disabled = true;
   try {
     if (id) {
       await apiFetch(`/api/equipment/${id}`, { method: 'PUT', body: JSON.stringify({ name, description }) });
@@ -256,6 +261,8 @@ document.getElementById('saveEquipmentBtn').addEventListener('click', async () =
   } catch (err) {
     errEl.textContent = err.message;
     errEl.classList.remove('hidden');
+  } finally {
+    btn.disabled = false;
   }
 });
 
@@ -270,7 +277,7 @@ async function loadTechnicians() {
     renderTechnicians();
     populateTechFilter();
   } catch (err) {
-    el.innerHTML = `<div class="alert alert-danger">${err.message}</div>`;
+    el.innerHTML = `<div class="alert alert-danger">${esc(err.message)}</div>`;
   }
 }
 
@@ -290,10 +297,10 @@ function renderTechnicians() {
               <td>${esc(t.full_name)}</td>
               <td><code>${esc(t.username)}</code></td>
               <td>${esc(t.email || '—')}</td>
-              <td>${new Date(t.created_at).toLocaleDateString()}</td>
+              <td>${t.created_at ? new Date(t.created_at).toLocaleDateString() : '—'}</td>
               <td>
                 <button class="btn btn-secondary btn-sm" onclick="editTechnician(${t.id})">Edit</button>
-                <button class="btn btn-danger btn-sm" onclick="deleteTechnician(${t.id}, '${esc(t.full_name)}')">Remove</button>
+                <button class="btn btn-danger btn-sm" data-del-id="${t.id}" data-del-name="${esc(t.full_name)}">Remove</button>
               </td>
             </tr>
           `).join('')}
@@ -321,7 +328,7 @@ document.getElementById('addTechnicianBtn').addEventListener('click', () => {
   document.getElementById('techUsername').value = '';
   document.getElementById('techEmail').value = '';
   document.getElementById('techPassword').value = '';
-  document.getElementById('techPassword').placeholder = 'Min 6 characters';
+  document.getElementById('techPassword').placeholder = 'Min 8 characters';
   document.getElementById('saveTechnicianBtn').textContent = 'Add Technician';
   document.getElementById('technicianModalError').classList.add('hidden');
   openModal('technicianModal');
@@ -348,11 +355,12 @@ window.deleteTechnician = async function (id, name) {
     await apiFetch(`/api/technicians/${id}`, { method: 'DELETE' });
     await loadTechnicians();
   } catch (err) {
-    alert(`Error: ${err.message}`);
+    alert(`Error: ${esc(err.message)}`);
   }
 };
 
-document.getElementById('saveTechnicianBtn').addEventListener('click', async () => {
+document.getElementById('saveTechnicianBtn').addEventListener('click', async (e) => {
+  const btn = e.currentTarget;
   const id = document.getElementById('techId').value;
   const full_name = document.getElementById('techFullName').value.trim();
   const username = document.getElementById('techUsername').value.trim();
@@ -373,7 +381,7 @@ document.getElementById('saveTechnicianBtn').addEventListener('click', async () 
   }
   
   errEl.classList.add('hidden');
-
+  btn.disabled = true;
   try {
     if (id) {
       await apiFetch(`/api/technicians/${id}`, { method: 'PUT', body: JSON.stringify({ full_name, username, email, password }) });
@@ -385,6 +393,8 @@ document.getElementById('saveTechnicianBtn').addEventListener('click', async () 
   } catch (err) {
     errEl.textContent = err.message;
     errEl.classList.remove('hidden');
+  } finally {
+    btn.disabled = false;
   }
 });
 
@@ -398,7 +408,7 @@ async function loadAdmins() {
     admins = await apiFetch('/api/admins');
     renderAdmins();
   } catch (err) {
-    el.innerHTML = `<div class="alert alert-danger">${err.message}</div>`;
+    el.innerHTML = `<div class="alert alert-danger">${esc(err.message)}</div>`;
   }
 }
 
@@ -418,10 +428,10 @@ function renderAdmins() {
               <td>${esc(a.full_name)}</td>
               <td><code>${esc(a.username)}</code></td>
               <td>${esc(a.email || '—')}</td>
-              <td>${new Date(a.created_at).toLocaleDateString()}</td>
+              <td>${a.created_at ? new Date(a.created_at).toLocaleDateString() : '—'}</td>
               <td>
                 <button class="btn btn-secondary btn-sm" onclick="editAdmin(${a.id})">Edit</button>
-                ${a.isSelf ? '' : `<button class="btn btn-danger btn-sm" onclick="deleteAdmin(${a.id}, '${esc(a.full_name)}')">Remove</button>`}
+                ${a.isSelf ? '' : `<button class="btn btn-danger btn-sm" data-del-id="${a.id}" data-del-name="${esc(a.full_name)}">Remove</button>`}
               </td>
             </tr>
           `).join('')}
@@ -438,7 +448,7 @@ document.getElementById('addAdminBtn').addEventListener('click', () => {
   document.getElementById('adminUsername').value = '';
   document.getElementById('adminEmail').value = '';
   document.getElementById('adminPassword').value = '';
-  document.getElementById('adminPassword').placeholder = 'Min 6 characters';
+  document.getElementById('adminPassword').placeholder = 'Min 8 characters';
   document.getElementById('saveAdminBtn').textContent = 'Add Admin';
   document.getElementById('adminModalError').classList.add('hidden');
   openModal('adminModal');
@@ -465,11 +475,12 @@ window.deleteAdmin = async function (id, name) {
     await apiFetch(`/api/admins/${id}`, { method: 'DELETE' });
     await loadAdmins();
   } catch (err) {
-    alert(`Error: ${err.message}`);
+    alert(`Error: ${esc(err.message)}`);
   }
 };
 
-document.getElementById('saveAdminBtn').addEventListener('click', async () => {
+document.getElementById('saveAdminBtn').addEventListener('click', async (e) => {
+  const btn = e.currentTarget;
   const id = document.getElementById('adminId').value;
   const full_name = document.getElementById('adminFullName').value.trim();
   const username = document.getElementById('adminUsername').value.trim();
@@ -488,7 +499,7 @@ document.getElementById('saveAdminBtn').addEventListener('click', async () => {
     return;
   }
   errEl.classList.add('hidden');
-
+  btn.disabled = true;
   try {
     if (id) {
       await apiFetch(`/api/admins/${id}`, { method: 'PUT', body: JSON.stringify({ full_name, username, email, password }) });
@@ -500,6 +511,8 @@ document.getElementById('saveAdminBtn').addEventListener('click', async () => {
   } catch (err) {
     errEl.textContent = err.message;
     errEl.classList.remove('hidden');
+  } finally {
+    btn.disabled = false;
   }
 });
 
@@ -545,7 +558,7 @@ async function loadSubmissions() {
       </div>
     `;
   } catch (err) {
-    el.innerHTML = `<div class="alert alert-danger">${err.message}</div>`;
+    el.innerHTML = `<div class="alert alert-danger">${esc(err.message)}</div>`;
   }
 }
 
@@ -588,7 +601,7 @@ window.viewDetail = async function (id) {
     });
     document.body.appendChild(overlay);
   } catch (err) {
-    alert(`Error: ${err.message}`);
+    alert(`Error: ${esc(err.message)}`);
   }
 };
 
@@ -650,7 +663,7 @@ async function loadQASubmissions() {
       </div>
     `;
   } catch (err) {
-    el.innerHTML = `<div class="alert alert-danger">${err.message}</div>`;
+    el.innerHTML = `<div class="alert alert-danger">${esc(err.message)}</div>`;
   }
 }
 
@@ -697,7 +710,136 @@ async function loadOnboardingSubmissions() {
       </div>
     `;
   } catch (err) {
-    el.innerHTML = `<div class="alert alert-danger">${err.message}</div>`;
+    el.innerHTML = `<div class="alert alert-danger">${esc(err.message)}</div>`;
+  }
+}
+
+// ─── Handover Records (Admin) ─────────────────────────────────────────────────
+const HANDOVER_SERVICES = [
+  { key: 'pc_working',         label: 'Classroom PC Working?' },
+  { key: 'projector_working',  label: 'Projector working?' },
+  { key: 'wifi_students',      label: 'Wi-Fi Connectivity (Students?)' },
+  { key: 'cables_working',     label: 'Cables (HDMI, VGA, AUX) working?' },
+  { key: 'microphones',        label: 'Faculty and desk Microphones' },
+  { key: 'faculty_mic_zoom',   label: 'Faculty Mic. working over Zoom / Teams?' },
+  { key: 'room_mic_zoom',      label: 'Room Mic. Working over Zoom / Teams?' },
+  { key: 'classroom_audio',    label: 'Classroom Audio' },
+  { key: 'cameras_working',    label: 'Classroom Cameras Working?' },
+  { key: 'cameras_positioned', label: 'Cameras Positioned and working?' },
+  { key: 'zoom_teams',         label: 'Zoom / MS Teams Account & Session working?' },
+  { key: 'contact_supplied',   label: 'Contact Number Supplied to Session Producer and faculty?' },
+];
+
+document.getElementById('loadHandoverBtn').addEventListener('click', loadHandoverSubmissions);
+
+async function loadHandoverSubmissions() {
+  const el = document.getElementById('handoverList');
+  el.innerHTML = '<div class="spinner"></div>';
+  const sd = document.getElementById('handoverStartDate').value;
+  const ed = document.getElementById('handoverEndDate').value;
+  const cf = document.getElementById('handoverClassroomFilter').value;
+  const params = new URLSearchParams({ limit: 200 });
+  if (sd) params.set('start_date', sd);
+  if (ed) params.set('end_date', ed);
+  if (cf) params.set('classroom_id', cf);
+  try {
+    const list = await apiFetch(`/api/handover?${params}`);
+    if (!list.length) {
+      el.innerHTML = '<div class="empty-state"><div class="empty-icon">🤝</div><p>No handover records found</p></div>';
+      return;
+    }
+    el.innerHTML = `
+      <div class="table-wrapper">
+        <table>
+          <thead><tr><th>Date</th><th>Class Start</th><th>Classroom</th><th>Programme</th><th>Technician</th><th></th></tr></thead>
+          <tbody>
+            ${list.map((r) => `
+              <tr>
+                <td>${esc(r.handover_date)}</td>
+                <td>${esc(r.class_start_time || '—')}</td>
+                <td>${esc(r.classroom_name || '—')}</td>
+                <td>${esc(r.programme_name || '—')}</td>
+                <td>${esc(r.technician_name)}</td>
+                <td><button class="btn btn-secondary btn-sm" onclick="viewHandoverDetail(${r.id})">View</button></td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+    `;
+  } catch (err) {
+    el.innerHTML = `<div class="alert alert-danger">${esc(err.message)}</div>`;
+  }
+}
+
+async function viewHandoverDetail(id) {
+  const body = document.getElementById('handoverDetailBody');
+  const title = document.getElementById('handoverDetailTitle');
+  body.innerHTML = '<div class="spinner"></div>';
+  openModal('handoverDetailModal');
+  try {
+    const r = await apiFetch(`/api/handover/${id}`);
+    title.textContent = `Handover — ${r.handover_date} — ${esc(r.classroom_name || '')}`;
+
+    let services = {};
+    try { services = JSON.parse(r.services_data); } catch (_) {}
+
+    const servicesHtml = HANDOVER_SERVICES.map((svc) => {
+      const d = services[svc.key] || {};
+      const status = d.ok === true ? '<span style="color:var(--success)">✔ Yes</span>'
+                   : d.ok === false ? '<span style="color:var(--danger)">✘ No</span>'
+                   : '—';
+      return `<tr>
+        <td style="font-size:0.85rem">${esc(svc.label)}</td>
+        <td style="text-align:center">${status}</td>
+        <td style="font-size:0.8rem">${esc(d.comments || '')}</td>
+      </tr>`;
+    }).join('');
+
+    const sigHtml = (label, sig) => sig
+      ? `<div style="margin-top:0.5rem"><strong>${label}:</strong><br><img src="${sig}" style="max-width:100%;border:1px solid var(--border);border-radius:4px;margin-top:0.25rem"></div>`
+      : '';
+
+    body.innerHTML = `
+      <h4 style="margin-top:0">Session Details</h4>
+      <div class="table-wrapper" style="margin-bottom:1rem">
+        <table><tbody>
+          <tr><th style="width:40%">Date</th><td>${esc(r.handover_date)}</td></tr>
+          <tr><th>Checking Start Time</th><td>${esc(r.checking_start_time || '—')}</td></tr>
+          <tr><th>Class Start Time</th><td>${esc(r.class_start_time || '—')}</td></tr>
+          <tr><th>Classroom</th><td>${esc(r.classroom_name || '—')}</td></tr>
+          <tr><th>Programme Name</th><td>${esc(r.programme_name || '—')}</td></tr>
+          <tr><th>IT Technician</th><td>${esc(r.technician_name)}</td></tr>
+          <tr><th>Faculty Name</th><td>${esc(r.faculty_name || '—')}</td></tr>
+          <tr><th>Session Producer</th><td>${esc(r.session_producer_name || '—')}</td></tr>
+          <tr><th>Programme Manager</th><td>${esc(r.programme_manager_name || '—')}</td></tr>
+        </tbody></table>
+      </div>
+      <h4>Services Tested</h4>
+      <div class="table-wrapper" style="margin-bottom:1rem">
+        <table>
+          <thead><tr><th>Service</th><th style="width:60px;text-align:center">Status</th><th>Comments</th></tr></thead>
+          <tbody>${servicesHtml}</tbody>
+        </table>
+      </div>
+      <h4>Sign-offs</h4>
+      <div class="table-wrapper" style="margin-bottom:1rem">
+        <table><tbody>
+          <tr><th style="width:40%">Faculty Arrived</th><td>${esc(r.faculty_arrived || '—')}</td></tr>
+          <tr><th>Faculty Comments</th><td>${esc(r.faculty_comments || '—')}</td></tr>
+          <tr><th>Session Producer Arrived</th><td>${esc(r.session_producer_arrived || '—')}</td></tr>
+          <tr><th>Session Producer Comments</th><td>${esc(r.session_producer_comments || '—')}</td></tr>
+          <tr><th>Programme Manager Arrived</th><td>${esc(r.programme_manager_arrived || '—')}</td></tr>
+          <tr><th>Programme Manager Comments</th><td>${esc(r.programme_manager_comments || '—')}</td></tr>
+        </tbody></table>
+      </div>
+      ${sigHtml('Faculty Signature', r.faculty_signature)}
+      ${sigHtml('Session Producer Signature', r.session_producer_signature)}
+      ${sigHtml('Programme Manager Signature', r.programme_manager_signature)}
+      ${r.additional_comments ? `<h4>Additional Comments</h4><p style="font-size:0.85rem">${esc(r.additional_comments)}</p>` : ''}
+    `;
+  } catch (err) {
+    body.innerHTML = `<div class="alert alert-danger">${esc(err.message)}</div>`;
   }
 }
 
@@ -734,9 +876,117 @@ async function loadAuditLog() {
       </div>
     `;
   } catch (err) {
-    el.innerHTML = `<div class="alert alert-danger">${err.message}</div>`;
+    el.innerHTML = `<div class="alert alert-danger">${esc(err.message)}</div>`;
   }
 }
+
+// ─── Week Ahead Admin Viewer ──────────────────────────────────────────────────
+document.getElementById('loadWeekAheadBtn')?.addEventListener('click', loadWeekAheadAdmin);
+
+async function loadWeekAheadAdmin() {
+  const el = document.getElementById('weekAheadAdminList');
+  if (!el) return;
+  el.innerHTML = '<div class="spinner"></div>';
+  try {
+    const uploads = await apiFetch('/api/week-ahead/uploads');
+    if (!uploads.length) {
+      el.innerHTML = '<div class="empty-state"><div class="empty-icon">📅</div><p>No week-ahead uploads found</p></div>';
+      return;
+    }
+    el.innerHTML = `
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr><th>File</th><th>Period</th><th>Events</th><th>Uploaded By</th><th>Date</th><th></th></tr>
+          </thead>
+          <tbody>
+            ${uploads.map(u => `
+              <tr>
+                <td>${esc(u.filename)}</td>
+                <td style="white-space:nowrap">${esc(u.week_start || '—')} → ${esc(u.week_end || '—')}</td>
+                <td>${u.row_count}</td>
+                <td>${esc(u.uploaded_by || '—')}</td>
+                <td style="white-space:nowrap">${new Date(u.created_at).toLocaleString()}</td>
+                <td>
+                  <button class="btn btn-secondary btn-sm" onclick="viewWeekAheadBatch('${esc(u.id)}')">View</button>
+                  <button class="btn btn-danger btn-sm" onclick="deleteWeekAheadBatch('${esc(u.id)}')">Delete</button>
+                </td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>`;
+  } catch (err) {
+    el.innerHTML = `<div class="alert alert-danger">${esc(err.message)}</div>`;
+  }
+}
+
+window.viewWeekAheadBatch = async function (batchId) {
+  try {
+    const events = await apiFetch(`/api/week-ahead/week?batch=${batchId}`);
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay open';
+    overlay.innerHTML = `
+      <div class="modal" style="max-width:800px">
+        <h3 class="modal-title">Week Ahead Events (${events.length})</h3>
+        <div style="max-height:70vh;overflow-y:auto">
+          ${!events.length ? '<p>No events in this batch.</p>' : `
+            <div class="table-wrapper">
+              <table style="font-size:0.82rem">
+                <thead><tr><th>Date</th><th>Time</th><th>Venue</th><th>Programme</th><th>Tech</th><th>IT</th></tr></thead>
+                <tbody>
+                  ${events.map(e => `
+                    <tr>
+                      <td style="white-space:nowrap">${esc(e.event_date)}</td>
+                      <td style="white-space:nowrap">${esc(e.time_range)}</td>
+                      <td>${esc(e.venue)}</td>
+                      <td>${esc(e.company_course)}</td>
+                      <td>${esc(e.assigned_tech || '—')}</td>
+                      <td>${esc(e.it_support_required || '—')}</td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            </div>`}
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" onclick="this.closest('.modal-overlay').remove()">Close</button>
+        </div>
+      </div>`;
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+    document.body.appendChild(overlay);
+  } catch (err) {
+    alert('Error: ' + err.message);
+  }
+};
+
+window.deleteWeekAheadBatch = async function (batchId) {
+  if (!confirm('Delete this upload and all its events?')) return;
+  try {
+    await apiFetch(`/api/week-ahead/${batchId}`, { method: 'DELETE' });
+    await loadWeekAheadAdmin();
+  } catch (err) {
+    alert('Error: ' + err.message);
+  }
+};
+
+// ─── Event delegation for delete buttons (safe data-attribute approach) ───────
+document.getElementById('classroomsList').addEventListener('click', (e) => {
+  const btn = e.target.closest('button[data-del-id]');
+  if (btn) deleteClassroom(Number(btn.dataset.delId), btn.dataset.delName);
+});
+document.getElementById('equipmentList').addEventListener('click', (e) => {
+  const btn = e.target.closest('button[data-del-id]');
+  if (btn) deleteEquipment(Number(btn.dataset.delId), btn.dataset.delName, Number(btn.dataset.delClassroom));
+});
+document.getElementById('techniciansList').addEventListener('click', (e) => {
+  const btn = e.target.closest('button[data-del-id]');
+  if (btn) deleteTechnician(Number(btn.dataset.delId), btn.dataset.delName);
+});
+document.getElementById('adminsList').addEventListener('click', (e) => {
+  const btn = e.target.closest('button[data-del-id]');
+  if (btn) deleteAdmin(Number(btn.dataset.delId), btn.dataset.delName);
+});
 
 (async function init() {
   currentUser = await initNav('/admin');
@@ -753,29 +1003,40 @@ async function loadOverview() {
     const today = new Date().toLocaleDateString('en-ZA', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 
     const uncheckedHtml = d.classrooms_unchecked.length === 0
-      ? `<span class="text-success">All classrooms checked ✅</span>`
-      : `<ul class="list" style="margin:0;padding-left:1rem">${d.classrooms_unchecked.map((n) => `<li>${n}</li>`).join('')}</ul>`;
+      ? `<div style="padding:0.75rem 1rem"><span class="text-success">All classrooms checked ✅</span></div>`
+      : d.classrooms_unchecked.map((c) => {
+          const name = (typeof c === 'object' && c !== null) ? c.name : String(c);
+          const lastChecked = (typeof c === 'object' && c !== null && c.last_checked)
+            ? `Last checked: ${esc(String(c.last_checked))}`
+            : (typeof c === 'object' && c !== null ? 'No prior submissions on record' : '');
+          return `<div style="display:flex;align-items:center;padding:0.65rem 1rem;border-bottom:1px solid var(--border)">
+            <div>
+              <span style="font-weight:600;font-size:1rem">${esc(name)}</span>
+              ${lastChecked ? `<div style="color:var(--text-muted,#64748b);font-size:0.8rem;margin-top:2px">${lastChecked}</div>` : ''}
+            </div>
+          </div>`;
+        }).join('');
 
     const flaggedRowsHtml = d.top_flagged_today.length === 0
       ? `<p class="text-muted" style="margin:0">No flagged items today.</p>`
       : d.top_flagged_today.map((f) =>
           `<div class="item-row">
-            <span>${f.equipment_name} — <em>${f.classroom_name}</em></span>
+            <span>${esc(f.equipment_name)} — <em>${esc(f.classroom_name)}</em></span>
             ${statusBadge(f.status)}
-            ${f.notes ? `<span class="text-muted" style="font-size:.85em">${f.notes}</span>` : ''}
+            ${f.notes ? `<span class="text-muted" style="font-size:.85em">${esc(f.notes)}</span>` : ''}
           </div>`
         ).join('');
 
     const problemEquipHtml = d.top_problem_equipment.length === 0
       ? `<p class="text-muted" style="margin:0">No issues in past 30 days.</p>`
       : d.top_problem_equipment.map((e) =>
-          `<div class="item-row"><span>${e.equipment_name}</span><span class="badge badge-not_working">${e.issue_count} issues</span></div>`
+          `<div class="item-row"><span>${esc(e.equipment_name)}</span><span class="badge badge-not_working">${e.issue_count} issues</span></div>`
         ).join('');
 
     const auditHtml = d.recent_audit.length === 0
       ? `<p class="text-muted" style="margin:0">No recent activity.</p>`
       : d.recent_audit.map((a) =>
-          `<div class="item-row"><span class="text-muted" style="font-size:.8em">${a.created_at ? a.created_at.slice(0, 16) : ''}</span> <strong>${a.actor || 'System'}</strong> — ${a.action}${a.details ? `: <em>${a.details}</em>` : ''}</div>`
+          `<div class="item-row"><span class="text-muted" style="font-size:.8em">${a.created_at ? a.created_at.slice(0, 16) : ''}</span> <strong>${esc(a.actor || 'System')}</strong> — ${esc(a.action)}${a.details ? `: <em>${esc(a.details)}</em>` : ''}</div>`
         ).join('');
 
     el.innerHTML = `
@@ -809,9 +1070,12 @@ async function loadOverview() {
       </div>
 
       <div class="overview-grid">
-        <div class="card">
-          <div class="card-header"><span class="card-title">📋 Unchecked Classrooms Today</span></div>
-          <div class="card-body">${uncheckedHtml}</div>
+        <div class="card" style="border-left:4px solid #f59e0b">
+          <div class="card-header" style="background:rgba(245,158,11,0.08)">
+            <span class="card-title">⚠️ Unchecked Classrooms Today</span>
+            ${d.classrooms_unchecked.length > 0 ? `<span style="background:#f59e0b;color:#fff;padding:2px 12px;border-radius:12px;font-size:0.8rem;font-weight:600">${d.classrooms_unchecked.length}</span>` : ''}
+          </div>
+          <div style="padding:0">${uncheckedHtml}</div>
         </div>
 
         <div class="card">
@@ -831,6 +1095,6 @@ async function loadOverview() {
       </div>
     `;
   } catch (err) {
-    el.innerHTML = `<div class="alert alert-danger">${err.message}</div>`;
+    el.innerHTML = `<div class="alert alert-danger">${esc(err.message)}</div>`;
   }
 }

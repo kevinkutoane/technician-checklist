@@ -69,6 +69,13 @@ router.post('/', (req, res) => {
     safePhoto = photo_data;
   }
 
+  if (safeSignature.length > 2_000_000) {
+    return res.status(400).json({ error: 'Signature data too large' });
+  }
+  if (safePhoto.length > 2_000_000) {
+    return res.status(400).json({ error: 'Photo data too large' });
+  }
+
   const submission_date = new Date().toISOString().slice(0, 10);
   const technician_id = req.session.user.id;
 

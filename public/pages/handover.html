@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Create and review equipment handover records for staff transitions." />
+  <meta name="theme-color" content="#4f46e5" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="icon" href="/icons/icon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="/icons/icon.svg" />
+  <title>Classroom Handover – Technician Checklist</title>
+  <link rel="stylesheet" href="/css/styles.css" />
+  <script>try{var _t=localStorage.getItem('opsHubTheme');if(_t)document.documentElement.setAttribute('data-theme',_t);}catch(e){}</script>
+</head>
+<body>
+
+<div class="app-layout">
+  <aside class="sidebar" aria-label="Main navigation">
+    <a class="sidebar-brand" href="/">
+      <span class="icon">💻</span>
+      <span>Ops Hub</span>
+    </a>
+    <ul class="sidebar-nav" id="navLinks"></ul>
+    <div class="sidebar-footer">
+      <button class="btn btn-block btn-secondary btn-sm" id="logoutBtn">Logout</button>
+    </div>
+  </aside>
+
+  <div class="main-content">
+    <header class="top-header">
+      <div class="top-header-user">
+        <div class="user-profile">
+          <div class="user-avatar" id="navAvatar">U</div>
+          <span id="navUser">User Name</span>
+        </div>
+      </div>
+    </header>
+
+    <div class="container">
+      <h1 class="page-title">Classroom Handover</h1>
+
+      <!-- ─── Log Handover Form ───────────────────────────────────────── -->
+      <div class="card mb-4">
+        <div class="card-header">
+          <span class="card-title">New Handover Form</span>
+          <small style="color:var(--text-muted)">Complete services checklist and obtain all sign-offs before the session begins</small>
+        </div>
+
+        <div id="handoverSuccess" class="alert alert-success mt-3 hidden"></div>
+        <div id="handoverError" class="alert alert-danger mt-3 hidden"></div>
+
+        <form id="handoverForm">
+
+          <!-- ── Section 1: Session Details ─────────────────────────────── -->
+          <h4 style="font-size:0.85rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.06em;margin:1rem 0 0.75rem">Session Details</h4>
+
+          <div class="row mb-3">
+            <div class="col-4">
+              <div class="form-group">
+                <label class="form-label">Date *</label>
+                <input type="date" class="form-control" id="handoverDate" required />
+              </div>
+            </div>
+            <div class="col-4">
+              <div class="form-group">
+                <label class="form-label">Checking Start Time</label>
+                <input type="time" class="form-control" id="checkingStartTime" />
+              </div>
+            </div>
+            <div class="col-4">
+              <div class="form-group">
+                <label class="form-label">Class Start Time</label>
+                <input type="time" class="form-control" id="classStartTime" />
+              </div>
+            </div>
+          </div>
+
+          <div class="row mb-3">
+            <div class="col-6">
+              <div class="form-group">
+                <label class="form-label">Classroom *</label>
+                <select class="form-control" id="handoverClassroom" required>
+                  <option value="">-- Select Classroom --</option>
+                </select>
+              </div>
+            </div>
+            <div class="col-6">
+              <div class="form-group">
+                <label class="form-label">Programme Name</label>
+                <input type="text" class="form-control" id="programmeName" placeholder="e.g. MBA Finance" />
+              </div>
+            </div>
+          </div>
+
+          <div class="row mb-3">
+            <div class="col-6">
+              <div class="form-group">
+                <label class="form-label">IT Technician Name</label>
+                <input type="text" class="form-control" id="technicianName" readonly style="opacity:0.7;" />
+              </div>
+            </div>
+            <div class="col-6">
+              <div class="form-group">
+                <label class="form-label">Faculty Name</label>
+                <input type="text" class="form-control" id="facultyName" placeholder="e.g. Prof. Jane Smith" />
+              </div>
+            </div>
+          </div>
+
+          <div class="row mb-3">
+            <div class="col-6">
+              <div class="form-group">
+                <label class="form-label">Session Producer Name</label>
+                <input type="text" class="form-control" id="sessionProducerName" placeholder="Session Producer" />
+              </div>
+            </div>
+            <div class="col-6">
+              <div class="form-group">
+                <label class="form-label">Programme Manager Name</label>
+                <input type="text" class="form-control" id="programmeManagerName" placeholder="Programme Manager" />
+              </div>
+            </div>
+          </div>
+
+          <!-- ── Section 2: Services Tested ────────────────────────────── -->
+          <h4 style="font-size:0.85rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.06em;margin:1.5rem 0 0.4rem">Services Tested</h4>
+          <p style="font-size:0.82rem;color:var(--text-muted);margin-bottom:0.75rem">Completed by IT — confirmed by Session Producer and Faculty</p>
+
+          <div class="table-wrapper" style="margin-bottom:1.5rem">
+            <table id="servicesTable" style="font-size:0.875rem">
+              <thead>
+                <tr>
+                  <th style="width:46%">Item</th>
+                  <th style="width:8%;text-align:center">Y</th>
+                  <th style="width:8%;text-align:center">N</th>
+                  <th style="width:38%">Comments</th>
+                </tr>
+              </thead>
+              <tbody>
+                <!-- Populated by handover.js renderServicesTable() -->
+              </tbody>
+            </table>
+          </div>
+
+          <!-- ── Section 3: Handover Sign-offs ──────────────────────────── -->
+          <h4 style="font-size:0.85rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.06em;margin:1.5rem 0 0.75rem">Handover Sign-off</h4>
+
+          <!-- Faculty -->
+          <div class="card mb-3" style="background:var(--gray-50,#f9fafb);border:1px solid var(--border);">
+            <div class="card-header" style="padding:0.55rem 0.85rem;">
+              <span class="card-title" style="font-size:0.875rem;">👤 Faculty</span>
+            </div>
+            <div style="padding:0.75rem 0.85rem 0;">
+              <div class="row" style="gap:0.5rem;">
+                <div class="col-4">
+                  <div class="form-group mb-2">
+                    <label class="form-label" style="font-size:0.8rem;">Exact Time Arrived</label>
+                    <input type="time" class="form-control" id="facultyArrived" />
+                  </div>
+                </div>
+                <div class="col-8">
+                  <div class="form-group mb-2">
+                    <label class="form-label" style="font-size:0.8rem;">Comments</label>
+                    <input type="text" class="form-control" id="facultyComments" placeholder="Optional" />
+                  </div>
+                </div>
+              </div>
+              <div class="form-group mb-2">
+                <label class="form-label" style="font-size:0.8rem;">Signature</label>
+                <div style="border:1px solid var(--border);border-radius:8px;background:#fafafa;position:relative;">
+                  <canvas id="facultySigCanvas" style="width:100%;height:100px;display:block;touch-action:none;cursor:crosshair;"></canvas>
+                </div>
+                <button type="button" class="btn btn-secondary btn-sm mt-1" id="clearFacultySig">Clear</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Session Producer -->
+          <div class="card mb-3" style="background:var(--gray-50,#f9fafb);border:1px solid var(--border);">
+            <div class="card-header" style="padding:0.55rem 0.85rem;">
+              <span class="card-title" style="font-size:0.875rem;">👤 Session Producer</span>
+            </div>
+            <div style="padding:0.75rem 0.85rem 0;">
+              <div class="row" style="gap:0.5rem;">
+                <div class="col-4">
+                  <div class="form-group mb-2">
+                    <label class="form-label" style="font-size:0.8rem;">Exact Time Arrived</label>
+                    <input type="time" class="form-control" id="spArrived" />
+                  </div>
+                </div>
+                <div class="col-8">
+                  <div class="form-group mb-2">
+                    <label class="form-label" style="font-size:0.8rem;">Comments</label>
+                    <input type="text" class="form-control" id="spComments" placeholder="Optional" />
+                  </div>
+                </div>
+              </div>
+              <div class="form-group mb-2">
+                <label class="form-label" style="font-size:0.8rem;">Signature</label>
+                <div style="border:1px solid var(--border);border-radius:8px;background:#fafafa;position:relative;">
+                  <canvas id="spSigCanvas" style="width:100%;height:100px;display:block;touch-action:none;cursor:crosshair;"></canvas>
+                </div>
+                <button type="button" class="btn btn-secondary btn-sm mt-1" id="clearSpSig">Clear</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Programme Manager -->
+          <div class="card mb-3" style="background:var(--gray-50,#f9fafb);border:1px solid var(--border);">
+            <div class="card-header" style="padding:0.55rem 0.85rem;">
+              <span class="card-title" style="font-size:0.875rem;">👤 Programme Manager</span>
+            </div>
+            <div style="padding:0.75rem 0.85rem 0;">
+              <div class="row" style="gap:0.5rem;">
+                <div class="col-4">
+                  <div class="form-group mb-2">
+                    <label class="form-label" style="font-size:0.8rem;">Exact Time Arrived</label>
+                    <input type="time" class="form-control" id="pmArrived" />
+                  </div>
+                </div>
+                <div class="col-8">
+                  <div class="form-group mb-2">
+                    <label class="form-label" style="font-size:0.8rem;">Comments</label>
+                    <input type="text" class="form-control" id="pmComments" placeholder="Optional" />
+                  </div>
+                </div>
+              </div>
+              <div class="form-group mb-2">
+                <label class="form-label" style="font-size:0.8rem;">Signature</label>
+                <div style="border:1px solid var(--border);border-radius:8px;background:#fafafa;position:relative;">
+                  <canvas id="pmSigCanvas" style="width:100%;height:100px;display:block;touch-action:none;cursor:crosshair;"></canvas>
+                </div>
+                <button type="button" class="btn btn-secondary btn-sm mt-1" id="clearPmSig">Clear</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- ── Section 4: Additional Comments ────────────────────────── -->
+          <div class="form-group mt-3 mb-4">
+            <label class="form-label">Additional Comments</label>
+            <textarea class="form-control" id="additionalComments" rows="3" placeholder="Any additional notes or observations…"></textarea>
+          </div>
+
+          <button type="button" class="btn btn-primary btn-block" id="submitHandoverBtn">📋 Submit Handover Form</button>
+
+        </form>
+      </div>
+
+      <!-- ─── Recent Handovers ────────────────────────────────────────── -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Recent Handover Records</span>
+          <button class="btn btn-secondary btn-sm" id="refreshHandoversBtn">↻ Refresh</button>
+        </div>
+        <div id="handoversList"><div class="spinner"></div></div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.7/dist/signature_pad.umd.min.js"></script>
+<script src="/js/nav.js"></script>
+<script src="/js/handover.js"></script>
+<script>if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js').catch(()=>{});</script>
+</body>
+</html>

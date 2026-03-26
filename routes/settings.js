@@ -38,7 +38,7 @@ router.get('/profile', (req, res) => {
 });
 
 // PUT /api/settings/profile
-router.put('/profile', (req, res) => {
+router.put('/profile', async (req, res) => {
   const { full_name, username, email, current_password, new_password } = req.body;
 
   if (!full_name || typeof full_name !== 'string' || !full_name.trim()) {
@@ -76,13 +76,16 @@ router.put('/profile', (req, res) => {
 
     const row = db.prepare('SELECT password FROM users WHERE id = ?')
       .get(req.session.user.id);
-    if (!bcrypt.compareSync(current_password, row.password)) {
-      return res.status(400).json({ error: 'Current password is incorrect' });
+    try {
+      if (!(await bcrypt.compare(current_password, row.password))) {
+        return res.status(400).json({ error: 'Current password is incorrect' });
+      }
+      const hash = await bcrypt.hash(new_password, 12);
+      db.prepare('UPDATE users SET full_name = ?, username = ?, email = ?, password = ? WHERE id = ?')
+        .run(cleanName, cleanUsername, cleanEmail, hash, req.session.user.id);
+    } catch (err) {
+      return res.status(500).json({ error: 'Failed to update password' });
     }
-
-    const hash = bcrypt.hashSync(new_password, 12);
-    db.prepare('UPDATE users SET full_name = ?, username = ?, email = ?, password = ? WHERE id = ?')
-      .run(cleanName, cleanUsername, cleanEmail, hash, req.session.user.id);
   } else {
     db.prepare('UPDATE users SET full_name = ?, username = ?, email = ? WHERE id = ?')
       .run(cleanName, cleanUsername, cleanEmail, req.session.user.id);

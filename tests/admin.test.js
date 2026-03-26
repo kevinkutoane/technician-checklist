@@ -300,13 +300,13 @@ describe('POST /api/technicians', () => {
     expect(res.body.error).toMatch(/already exists/i);
   });
 
-  test('password shorter than 6 chars returns 400', async () => {
+  test('password shorter than 8 chars returns 400', async () => {
     const res = await request(app)
       .post('/api/technicians')
       .set('Cookie', adminCookie)
       .send({ username: `sp_${Date.now()}`, password: '12345', full_name: 'Short Pass' });
     expect(res.status).toBe(400);
-    expect(res.body.error).toMatch(/6 characters/i);
+    expect(res.body.error).toMatch(/8 characters/i);
   });
 
   test('missing required fields returns 400', async () => {

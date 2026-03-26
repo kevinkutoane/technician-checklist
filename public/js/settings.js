@@ -8,7 +8,7 @@ document.querySelectorAll('.tab-btn').forEach((btn) => {
     document.querySelectorAll('.tab-btn').forEach((b) => b.classList.remove('active'));
     document.querySelectorAll('.tab-content').forEach((c) => c.classList.remove('active'));
     btn.classList.add('active');
-    document.getElementById(`tab-${btn.dataset.tab}`).classList.add('active');
+    document.getElementById(`tab-${btn.dataset.tab}`)?.classList.add('active');
   });
 });
 
@@ -48,7 +48,7 @@ document.getElementById('profileForm').addEventListener('submit', async (e) => {
     const newName = document.getElementById('inputFullName').value.trim();
     document.getElementById('navUser').textContent = newName;
     const avatarEl = document.getElementById('navAvatar');
-    if (avatarEl) avatarEl.textContent = newName[0].toUpperCase();
+    if (avatarEl && newName) avatarEl.textContent = newName[0].toUpperCase();
   } catch (err) {
     showMsg('profileMsg', err.message, true);
   }
@@ -60,6 +60,10 @@ document.getElementById('passwordForm').addEventListener('submit', async (e) => 
   const confirmPw = document.getElementById('inputConfirmPassword').value;
   if (newPw !== confirmPw) {
     showMsg('passwordMsg', 'New passwords do not match.', true);
+    return;
+  }
+  if (newPw.length < 8) {
+    showMsg('passwordMsg', 'New password must be at least 8 characters.', true);
     return;
   }
   try {

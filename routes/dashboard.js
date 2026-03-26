@@ -398,6 +398,24 @@ router.get('/export', (req, res) => {
   doc.end();
 });
 
+// GET /api/dashboard/unchecked-classrooms
+// Returns classrooms not yet checked today — accessible to all authenticated users
+router.get('/unchecked-classrooms', requireAuth, (req, res) => {
+  const today = new Date().toISOString().slice(0, 10);
+  const rows = db.prepare(`
+    SELECT c.id, c.name,
+      (SELECT cs2.submission_date FROM checklist_submissions cs2
+       WHERE cs2.classroom_id = c.id
+       ORDER BY cs2.submission_date DESC LIMIT 1) AS last_checked
+    FROM classrooms c
+    WHERE c.id NOT IN (
+      SELECT DISTINCT classroom_id FROM checklist_submissions WHERE submission_date = ?
+    )
+    ORDER BY c.name
+  `).all(today);
+  res.json(rows.map((r) => ({ id: r.id, name: r.name, last_checked: r.last_checked || null })));
+});
+
 // GET /api/dashboard/admin-overview
 // Admin-only summary for the Overview tab in the admin panel
 router.get('/admin-overview', requireAdmin, (req, res) => {
@@ -418,15 +436,23 @@ router.get('/admin-overview', requireAdmin, (req, res) => {
     WHERE submission_date = ?
   `).get(today).n;
 
-  // Unchecked classrooms today
+  // Unchecked classrooms today — include id, name, and last submission date
   const uncheckedRows = db.prepare(`
-    SELECT c.name FROM classrooms c
+    SELECT c.id, c.name,
+      (SELECT cs2.submission_date FROM checklist_submissions cs2
+       WHERE cs2.classroom_id = c.id
+       ORDER BY cs2.submission_date DESC LIMIT 1) AS last_checked
+    FROM classrooms c
     WHERE c.id NOT IN (
       SELECT DISTINCT classroom_id FROM checklist_submissions WHERE submission_date = ?
     )
     ORDER BY c.name
   `).all(today);
-  const classrooms_unchecked = uncheckedRows.map((r) => r.name);
+  const classrooms_unchecked = uncheckedRows.map((r) => ({
+    id: r.id,
+    name: r.name,
+    last_checked: r.last_checked || null,
+  }));
 
   // Flagged items today (working = not flagged; anything else is flagged)
   const flagged_today = db.prepare(`

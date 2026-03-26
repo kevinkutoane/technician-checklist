@@ -44,6 +44,8 @@ function stopStream() {
   }
 }
 
+window.addEventListener('beforeunload', stopStream);
+
 function updatePhotoDownload() {
   const a = document.getElementById('downloadPhotoBtn');
   if (!a) return;

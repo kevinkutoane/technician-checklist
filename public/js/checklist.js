@@ -2,6 +2,7 @@
 
 let currentUser = null;
 let selectedEquipment = [];
+let loadChecklistSeq = 0;
 
 async function loadClassrooms() {
   try {
@@ -23,7 +24,10 @@ const checklistForm = document.getElementById('checklistForm');
 submissionDateInput.value = new Date().toISOString().slice(0, 10);
 
 async function loadChecklistData() {
+  const seq = ++loadChecklistSeq;
   const classroomId = classroomSelect.value;
+  const errEl = document.getElementById('loadError');
+  if (errEl) errEl.classList.add('hidden');
   if (!classroomId) {
     checklistForm.classList.add('hidden');
     return;
@@ -35,9 +39,10 @@ async function loadChecklistData() {
   try {
     // Load equipment
     selectedEquipment = await apiFetch(`/api/equipment/${classroomId}`);
+    if (seq !== loadChecklistSeq) return;
 
     if (!selectedEquipment.length) {
-      alert('No equipment configured for this classroom. Please contact an admin.');
+      if (errEl) { errEl.textContent = 'No equipment configured for this classroom. Please contact an admin.'; errEl.classList.remove('hidden'); }
       document.getElementById('loadingSpinner').classList.add('hidden');
       return;
     }
@@ -104,6 +109,7 @@ async function loadChecklistData() {
     // Pre-fill notes from most recent previous submission
     try {
       const prevNotes = await apiFetch(`/api/checklists/latest-notes?classroom_id=${classroomId}`);
+      if (seq !== loadChecklistSeq) return;
       if (prevNotes.length > 0) {
         const noteMap = Object.fromEntries(prevNotes.map((n) => [n.equipment_id, n.notes]));
         for (const eq of selectedEquipment) {
@@ -118,7 +124,8 @@ async function loadChecklistData() {
       // Pre-fill is best-effort — ignore errors
     }
   } catch (err) {
-    alert(`Error: ${err.message}`);
+    if (seq !== loadChecklistSeq) return;
+    if (errEl) { errEl.textContent = `Error: ${err.message}`; errEl.classList.remove('hidden'); }
   } finally {
     document.getElementById('loadingSpinner').classList.add('hidden');
   }

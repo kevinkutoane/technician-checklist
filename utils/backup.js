@@ -19,7 +19,7 @@ const KEEP_DAYS    = 7;
 function runBackup() {
   try {
     if (!fs.existsSync(BACKUPS_DIR)) {
-      fs.mkdirSync(BACKUPS_DIR, { recursive: true });
+      fs.mkdirSync(BACKUPS_DIR, { recursive: true, mode: 0o700 });
     }
 
     const today    = new Date().toISOString().slice(0, 10);

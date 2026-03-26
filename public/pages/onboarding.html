@@ -3,18 +3,21 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Issue IT equipment to employees with digital asset agreements and signatures." />
   <meta name="theme-color" content="#4f46e5" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <link rel="manifest" href="/manifest.json" />
+  <link rel="icon" href="/icons/icon.svg" type="image/svg+xml" />
   <link rel="apple-touch-icon" href="/icons/icon.svg" />
   <title>Asset Agreement – Technician Checklist</title>
   <link rel="stylesheet" href="/css/styles.css" />
+  <script>try{var _t=localStorage.getItem('opsHubTheme');if(_t)document.documentElement.setAttribute('data-theme',_t);}catch(e){}</script>
 </head>
 <body>
 
 <div class="app-layout">
-  <aside class="sidebar">
+  <aside class="sidebar" aria-label="Main navigation">
     <a class="sidebar-brand" href="/">
       <span class="icon">💻</span>
       <span>Ops Hub</span>
@@ -123,7 +126,7 @@
                 <small class="form-text" style="display:block;margin-top:4px;color:var(--text-muted)">Take or upload a portrait photo for Teams / LinkedIn</small>
               </div>
               <div id="cameraLive" class="hidden">
-                <video id="cameraVideo" autoplay playsinline style="width:100%;max-width:320px;border-radius:8px;background:#000;display:block;"></video>
+                <video id="cameraVideo" autoplay playsinline muted style="width:100%;max-width:320px;border-radius:8px;background:#000;display:block;"></video>
                 <div style="margin-top:8px;display:flex;gap:8px;">
                   <button type="button" class="btn btn-primary btn-sm" id="capturePhotoBtn">📸 Capture</button>
                   <button type="button" class="btn btn-secondary btn-sm" id="cancelCameraBtn">Cancel</button>

@@ -8,7 +8,8 @@ function statusBadge(status) {
     not_working: '❌ Not Working',
     needs_repair: '⚠️ Needs Repair',
   };
-  return `<span class="badge badge-${status}">${labels[status] || status}</span>`;
+  const safeClass = Object.prototype.hasOwnProperty.call(labels, status) ? status : 'unknown';
+  return `<span class="badge badge-${safeClass}">${labels[status] || esc(String(status))}</span>`;
 }
 
 // ─── Stats ────────────────────────────────────────────────────────────────────
@@ -31,21 +32,51 @@ async function loadStats() {
           ? Math.round((ov.classrooms_checked_today / ov.classrooms_total) * 100)
           : 0;
         document.getElementById('statCoverage').textContent = `${pct}%`;
-        // Unchecked alert
-        if (ov.classrooms_unchecked.length > 0) {
-          const alertEl = document.getElementById('uncheckedAlert');
-          alertEl.classList.remove('hidden');
-          alertEl.innerHTML = `
-            <div class="alert alert-warning" style="margin-bottom:1.5rem">
-              <strong>⚠️ ${ov.classrooms_unchecked.length} classroom(s) not yet checked today:</strong>
-              ${ov.classrooms_unchecked.join(', ')}
-            </div>`;
-        }
-      } catch (_) { /* ignore */ }
+      } catch (err) {
+        if (err.status === 401) { window.location.href = '/'; return; }
+        console.warn('Admin overview unavailable:', err.message);
+      }
     } else if (techCard) {
       techCard.style.display = 'none';
       const covCard = document.getElementById('statCoverageCard');
       if (covCard) covCard.style.display = 'none';
+      // Unchecked classrooms for technicians
+      try {
+        const unchecked = await apiFetch('/api/dashboard/unchecked-classrooms');
+        const alertEl = document.getElementById('uncheckedAlert');
+        if (alertEl) {
+          if (unchecked.length > 0) {
+            const rows = unchecked.map((c) => {
+              const lastChecked = c.last_checked ? `Last checked: ${esc(String(c.last_checked))}` : 'No prior submissions on record';
+              return `
+                <div style="display:flex;align-items:center;justify-content:space-between;
+                            padding:0.65rem 1rem;border-bottom:1px solid var(--border)">
+                  <div>
+                    <span style="font-weight:600;font-size:1rem">${esc(c.name)}</span>
+                    <div style="color:var(--text-muted,#64748b);font-size:0.8rem;margin-top:2px">${lastChecked}</div>
+                  </div>
+                  <a href="/checklist" class="btn btn-primary btn-sm" style="white-space:nowrap">
+                    ✅ Check now
+                  </a>
+                </div>`;
+            }).join('');
+            alertEl.innerHTML = `
+              <div class="card mb-4" style="border-left:4px solid #f59e0b">
+                <div class="card-header" style="background:rgba(245,158,11,0.08)">
+                  <span class="card-title">⚠️ Unchecked Classrooms Today</span>
+                  <span style="background:#f59e0b;color:#fff;padding:2px 12px;border-radius:12px;
+                               font-size:0.8rem;font-weight:600">${unchecked.length}</span>
+                </div>
+                ${rows}
+              </div>`;
+            alertEl.classList.remove('hidden');
+          } else {
+            alertEl.classList.add('hidden');
+          }
+        }
+      } catch (err) {
+        console.warn('Unchecked classrooms unavailable:', err.message);
+      }
     }
   } catch (err) {
     console.error('Stats error:', err);
@@ -82,7 +113,7 @@ async function loadIssues(date) {
       </div>
     `;
   } catch (err) {
-    el.innerHTML = `<div class="alert alert-danger">${err.message}</div>`;
+    el.innerHTML = `<div class="alert alert-danger">${esc(err.message)}</div>`;
   }
 }
 
@@ -142,7 +173,7 @@ async function loadSubmissions() {
       </div>
     `;
   } catch (err) {
-    el.innerHTML = `<div class="alert alert-danger">${err.message}</div>`;
+    el.innerHTML = `<div class="alert alert-danger">${esc(err.message)}</div>`;
   }
 }
 
@@ -167,7 +198,7 @@ async function loadAssetAgreements() {
       </div>
     `).join('');
   } catch (err) {
-    el.innerHTML = `<div class="alert alert-danger">${err.message}</div>`;
+    el.innerHTML = `<div class="alert alert-danger">${esc(err.message)}</div>`;
   }
 }
 
@@ -191,7 +222,110 @@ async function loadQAChecklists() {
       </div>
     `).join('');
   } catch (err) {
-    el.innerHTML = `<div class="alert alert-danger">${err.message}</div>`;
+    el.innerHTML = `<div class="alert alert-danger">${esc(err.message)}</div>`;
+  }
+}
+
+// ─── Today's Week-Ahead Schedule ─────────────────────────────────────────────
+async function loadWeekAheadToday() {
+  const el = document.getElementById('weekAheadContainer');
+  if (!el) return;
+  try {
+    const events = await apiFetch('/api/week-ahead');
+    const badge = document.getElementById('scheduleBadge');
+    if (badge) {
+      badge.textContent = events.length ? `${events.length} event${events.length !== 1 ? 's' : ''}` : '';
+      badge.style.display = events.length ? '' : 'none';
+    }
+    if (!events.length) {
+      el.innerHTML = '<div class="empty-state" style="padding:1rem"><div class="empty-icon">📅</div><p style="font-size:0.85rem">No events scheduled for today</p></div>';
+      return;
+    }
+    el.innerHTML = `<div style="padding:0.5rem 1rem;display:flex;flex-direction:column;gap:0.5rem">
+      ${events.map(e => {
+        const itBadge = e.it_support_required
+          ? `<span style="background:${e.it_support_required.toLowerCase().includes('required') ? 'var(--danger,#ef4444)' : 'var(--primary,#1A5FA8)'};color:#fff;padding:1px 6px;border-radius:6px;font-size:0.7rem">${esc(e.it_support_required)}</span>`
+          : '';
+        return `<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:6px 0;border-bottom:1px solid var(--border)">
+          <span style="font-weight:700;color:var(--primary,#1A5FA8);min-width:100px">⏰ ${esc(e.time_range)}</span>
+          <span style="font-weight:600">${esc(e.venue)}</span>
+          <span style="flex:1;font-size:0.85rem">${esc(e.company_course)}</span>
+          ${e.assigned_tech ? `<span style="font-size:0.8rem">🔧 ${esc(e.assigned_tech)}</span>` : ''}
+          ${itBadge}
+        </div>`;
+      }).join('')}
+    </div>`;
+  } catch (err) {
+    el.innerHTML = `<div class="empty-state" style="padding:1rem"><p style="font-size:0.85rem;color:var(--text-muted)">Schedule unavailable</p></div>`;
+  }
+}
+
+// ─── Hybrid Classroom Setups ─────────────────────────────────────────────────
+async function loadHybridSetups() {
+  const el = document.getElementById('hybridSetupsList');
+  if (!el) return;
+  try {
+    const setups = await apiFetch('/api/hybrid');
+    renderHybridCard(setups);
+    const badge = document.getElementById('hybridBadge');
+    if (badge) {
+      badge.textContent = setups.length ? `${setups.length} hybrid` : '';
+      badge.style.display = setups.length ? '' : 'none';
+    }
+  } catch (err) {
+    el.innerHTML = `<div class="alert alert-danger" style="margin:0.75rem">${esc(err.message)}</div>`;
+  }
+}
+
+function renderHybridCard(setups) {
+  const el = document.getElementById('hybridSetupsList');
+  if (!el) return;
+  if (!setups.length) {
+    el.innerHTML = `<div class="empty-state" style="padding:1rem 1rem 0.5rem">
+      <div class="empty-icon">🎥</div>
+      <p style="font-size:0.85rem">No hybrid classrooms flagged for today. Use the form below to mark one.</p>
+    </div>`;
+    return;
+  }
+  el.innerHTML = `
+    <div class="table-wrapper">
+      <table style="font-size:0.85rem">
+        <thead>
+          <tr><th>Classroom</th><th>Set by</th><th>Time</th><th>Note</th><th></th></tr>
+        </thead>
+        <tbody>
+          ${setups.map((s) => `
+            <tr>
+              <td><strong>${esc(s.classroom_name)}</strong></td>
+              <td>${esc(s.set_by_name)}</td>
+              <td style="white-space:nowrap">${new Date(s.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td>
+              <td>${esc(s.notes || '—')}</td>
+              <td><button class="btn btn-secondary btn-sm" onclick="clearHybrid(${s.id})">✕ Clear</button></td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+async function clearHybrid(id) {
+  const errEl = document.getElementById('hybridError');
+  if (errEl) errEl.classList.add('hidden');
+  try {
+    await apiFetch(`/api/hybrid/${id}`, { method: 'DELETE' });
+    // Fetch hybrid data once and share between both consumers to avoid duplicate requests
+    const hybrids = await apiFetch('/api/hybrid');
+    const hybridSet = new Set(hybrids.map((h) => h.classroom_id));
+    renderHybridCard(hybrids);
+    const badge = document.getElementById('hybridBadge');
+    if (badge) {
+      badge.textContent = hybrids.length ? `${hybrids.length} hybrid` : '';
+      badge.style.display = hybrids.length ? '' : 'none';
+    }
+    await loadClassroomStatus('todayProgressGrid', currentUser ? currentUser.id : null, hybridSet);
+  } catch (err) {
+    if (errEl) { errEl.textContent = err.message; errEl.classList.remove('hidden'); }
   }
 }
 
@@ -199,7 +333,14 @@ async function loadQAChecklists() {
 let progressPollId = null;
 
 async function loadTodayProgress() {
-  await loadClassroomStatus('todayProgressGrid', currentUser ? currentUser.id : null);
+  let hybridSet;
+  try {
+    const hybrids = await apiFetch('/api/hybrid');
+    hybridSet = new Set(hybrids.map((h) => h.classroom_id));
+  } catch (_) {
+    hybridSet = new Set();
+  }
+  await loadClassroomStatus('todayProgressGrid', currentUser ? currentUser.id : null, hybridSet);
 }
 
 // ─── Equipment Status Trends (Admin only) ─────────────────────────────────────
@@ -270,7 +411,7 @@ async function loadEquipmentTrends() {
       },
     });
   } catch (err) {
-    el.innerHTML = `<div class="alert alert-danger">${err.message}</div>`;
+    el.innerHTML = `<div class="alert alert-danger">${esc(err.message)}</div>`;
   }
 }
 
@@ -444,9 +585,32 @@ window.viewDetail = async function (id) {
     });
     document.body.appendChild(overlay);
   } catch (err) {
-    alert(`Error: ${err.message}`);
+    alert(`Error: ${esc(err.message)}`);
   }
 };
+
+// ─── Mark Hybrid event ───────────────────────────────────────────────────────
+document.getElementById('markHybridBtn')?.addEventListener('click', async () => {
+  const errEl = document.getElementById('hybridError');
+  if (errEl) errEl.classList.add('hidden');
+  const classroom_id = document.getElementById('hybridClassroomSelect').value;
+  const notes = document.getElementById('hybridNoteInput').value.trim();
+  if (!classroom_id) {
+    if (errEl) { errEl.textContent = 'Please select a classroom first.'; errEl.classList.remove('hidden'); }
+    return;
+  }
+  try {
+    await apiFetch('/api/hybrid', {
+      method: 'POST',
+      body: JSON.stringify({ classroom_id: Number(classroom_id), notes }),
+    });
+    document.getElementById('hybridNoteInput').value = '';
+    document.getElementById('hybridClassroomSelect').value = '';
+    await Promise.all([loadHybridSetups(), loadTodayProgress()]);
+  } catch (err) {
+    if (errEl) { errEl.textContent = err.message; errEl.classList.remove('hidden'); }
+  }
+});
 
 // ─── Export ────────────────────────────────────────────────────────────────────
 document.getElementById('exportBtn').addEventListener('click', () => {
@@ -478,6 +642,12 @@ async function populateFilterSelects() {
     const crSel = document.getElementById('filterClassroom');
     crSel.innerHTML = '<option value="">All Classrooms</option>' +
       classrooms.map((c) => `<option value="${c.id}">${esc(c.name)}</option>`).join('');
+
+    const hybridSel = document.getElementById('hybridClassroomSelect');
+    if (hybridSel) {
+      hybridSel.innerHTML = '<option value="">-- Select Classroom --</option>' +
+        classrooms.map((c) => `<option value="${c.id}">${esc(c.name)}</option>`).join('');
+    }
 
     if (currentUser && currentUser.role === 'admin') {
       const teSel = document.getElementById('filterTechnician');
@@ -517,6 +687,8 @@ document.getElementById('applyFiltersBtn').addEventListener('click', async () =>
 
   await Promise.all([
     loadStats(),
+    // loadWeekAheadToday(), // hidden until Week Ahead upload format is finalised
+    loadHybridSetups(),
     loadTodayProgress(),
     loadIssues(),
     loadSubmissions(),
@@ -526,7 +698,9 @@ document.getElementById('applyFiltersBtn').addEventListener('click', async () =>
     populateFilterSelects(),
   ]);
 
-  progressPollId = setInterval(loadTodayProgress, 30_000);
+  progressPollId = setInterval(async () => {
+    await Promise.all([loadHybridSetups(), loadTodayProgress()]);
+  }, 30_000);
   window.addEventListener('beforeunload', () => clearInterval(progressPollId));
 
   // Populate classroom selector for trends (admin only)

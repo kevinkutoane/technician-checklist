@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Plan and review upcoming weekly classroom schedules." />
+  <meta name="theme-color" content="#4f46e5" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="icon" href="/icons/icon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="/icons/icon.svg" />
+  <title>Week Ahead – Technician Checklist</title>
+  <link rel="stylesheet" href="/css/styles.css" />
+  <script>try{var _t=localStorage.getItem('opsHubTheme');if(_t)document.documentElement.setAttribute('data-theme',_t);}catch(e){}</script>
+</head>
+<body>
+
+<div class="app-layout">
+  <aside class="sidebar" aria-label="Main navigation">
+    <a class="sidebar-brand" href="/">
+      <span class="icon">💻</span>
+      <span>Ops Hub</span>
+    </a>
+    <ul class="sidebar-nav" id="navLinks"></ul>
+    <div class="sidebar-footer">
+      <button class="btn btn-block btn-secondary btn-sm" id="logoutBtn">Logout</button>
+    </div>
+  </aside>
+
+  <div class="main-content">
+    <header class="top-header">
+      <div class="top-header-user">
+        <div class="user-profile">
+          <div class="user-avatar" id="navAvatar">U</div>
+          <span id="navUser">User Name</span>
+        </div>
+      </div>
+    </header>
+
+  <div class="container">
+    <h1 class="page-title">📅 Week Ahead Schedule</h1>
+
+    <!-- Upload Section (technician only) -->
+    <div id="uploadSection" class="card mb-4 hidden">
+      <div class="card-header">
+        <span class="card-title">Upload Week Ahead XLSX</span>
+      </div>
+      <div style="padding:1rem">
+        <div style="display:flex;gap:0.75rem;align-items:center;flex-wrap:wrap">
+          <input type="file" id="weekAheadFileInput" accept=".xlsx"
+            class="form-control" style="max-width:320px;flex:1" />
+          <button class="btn btn-primary" id="uploadBtn" disabled>📤 Upload</button>
+        </div>
+        <div id="uploadError" class="alert alert-danger hidden" style="margin-top:0.75rem"></div>
+        <div id="uploadSuccess" class="alert alert-success hidden" style="margin-top:0.75rem"></div>
+      </div>
+    </div>
+
+    <!-- Week Navigation -->
+    <div class="card mb-4">
+      <div class="card-header" style="flex-wrap:wrap;gap:0.5rem">
+        <span class="card-title" id="weekLabel">This Week</span>
+        <div style="display:flex;gap:0.5rem;align-items:center">
+          <button class="btn btn-secondary btn-sm" id="prevWeekBtn">← Prev</button>
+          <button class="btn btn-secondary btn-sm" id="todayBtn">Today</button>
+          <button class="btn btn-secondary btn-sm" id="nextWeekBtn">Next →</button>
+        </div>
+      </div>
+
+      <!-- Day Tabs -->
+      <div style="display:flex;gap:0;border-bottom:1px solid var(--border);overflow-x:auto">
+        <button class="tab-btn active" data-day="0" id="dayTab0" style="flex:1;min-width:0;border-radius:0;border-bottom:2px solid transparent">Mon</button>
+        <button class="tab-btn" data-day="1" id="dayTab1" style="flex:1;min-width:0;border-radius:0;border-bottom:2px solid transparent">Tue</button>
+        <button class="tab-btn" data-day="2" id="dayTab2" style="flex:1;min-width:0;border-radius:0;border-bottom:2px solid transparent">Wed</button>
+        <button class="tab-btn" data-day="3" id="dayTab3" style="flex:1;min-width:0;border-radius:0;border-bottom:2px solid transparent">Thu</button>
+        <button class="tab-btn" data-day="4" id="dayTab4" style="flex:1;min-width:0;border-radius:0;border-bottom:2px solid transparent">Fri</button>
+        <button class="tab-btn" data-day="5" id="dayTab5" style="flex:1;min-width:0;border-radius:0;border-bottom:2px solid transparent">Sat</button>
+        <button class="tab-btn" data-day="6" id="dayTab6" style="flex:1;min-width:0;border-radius:0;border-bottom:2px solid transparent">Sun</button>
+      </div>
+
+      <!-- Day Schedule -->
+      <div id="daySchedule" style="padding:1rem">
+        <div class="spinner"></div>
+      </div>
+    </div>
+
+    <!-- Upload History (technician sees own, admin won't see this page normally) -->
+    <div id="uploadHistorySection" class="card mb-4 hidden">
+      <div class="card-header">
+        <span class="card-title">Your Upload History</span>
+        <button class="btn btn-secondary btn-sm" id="refreshUploadsBtn">Refresh</button>
+      </div>
+      <div id="uploadHistoryList">
+        <div class="spinner"></div>
+      </div>
+    </div>
+
+  </div>
+  </div>
+</div>
+
+  <script src="/js/nav.js"></script>
+  <script src="/js/week-ahead.js"></script>
+<script>if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js').catch(()=>{});</script>
+</body>
+</html>

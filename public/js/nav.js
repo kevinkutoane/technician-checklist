@@ -27,7 +27,9 @@ function esc(str) {
 
 // ─── Theme ────────────────────────────────────────────────────────────────────
 function applyTheme(theme) {
-  document.documentElement.setAttribute('data-theme', theme || 'light');
+  const t = theme || 'light';
+  document.documentElement.setAttribute('data-theme', t);
+  try { localStorage.setItem('opsHubTheme', t); } catch (e) {}
 }
 
 // ─── Nav ──────────────────────────────────────────────────────────────────────
@@ -39,13 +41,25 @@ async function initNav(activeHref) {
   try {
     user = await apiFetch('/api/auth/me');
   } catch (err) {
-    if (!err.status || err.status === 401) window.location.href = '/';
+    if (err.status === 401) {
+      window.location.href = '/';
+      return null;
+    }
+    // Network error — show a visible retry overlay instead of a blank page
+    document.body.innerHTML = `
+      <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;
+                  height:100vh;gap:1rem;font-family:sans-serif">
+        <p style="font-size:1.1rem">&#9888;&#65039; Could not reach the server. Check your connection.</p>
+        <button onclick="location.reload()"
+          style="padding:0.5rem 1.5rem;background:#1A5FA8;color:#fff;border:none;
+                 border-radius:8px;cursor:pointer;font-size:1rem">Retry</button>
+      </div>`;
     return null;
   }
 
   document.getElementById('navUser').textContent = user.full_name;
   const avatarEl = document.getElementById('navAvatar');
-  if (avatarEl) avatarEl.textContent = user.full_name[0].toUpperCase();
+  if (avatarEl && user.full_name) avatarEl.textContent = user.full_name[0].toUpperCase();
 
   const navLinks = document.getElementById('navLinks');
   const links = [];
@@ -53,6 +67,9 @@ async function initNav(activeHref) {
     links.push(`<li><a href="/checklist"${activeHref === '/checklist' ? ' class="active"' : ''}><span class="icon">✅</span> Checklist</a></li>`);
     links.push(`<li><a href="/onboarding"${activeHref === '/onboarding' ? ' class="active"' : ''}><span class="icon">💻</span> Asset Agreement</a></li>`);
     links.push(`<li><a href="/qa"${activeHref === '/qa' ? ' class="active"' : ''}><span class="icon">🔍</span> QA Checklist</a></li>`);
+    links.push(`<li><a href="/handover"${activeHref === '/handover' ? ' class="active"' : ''}><span class="icon">🤝</span> Handover</a></li>`);
+    // Week Ahead hidden until upload format is finalised
+    // links.push(`<li><a href="/week-ahead"${activeHref === '/week-ahead' ? ' class="active"' : ''}><span class="icon">📅</span> Week Ahead</a></li>`);
   }
   links.push(`<li><a href="/dashboard"${activeHref === '/dashboard' ? ' class="active"' : ''}><span class="icon">📊</span> Dashboard</a></li>`);
   links.push(`<li><a href="/loans"${activeHref === '/loans' ? ' class="active"' : ''}><span class="icon">🔄</span> Loans</a></li>`);
@@ -67,8 +84,9 @@ async function initNav(activeHref) {
     applyTheme(prefs.theme);
   } catch (_) { /* ignore */ }
 
-  document.getElementById('logoutBtn').addEventListener('click', () => {
-    window.location.href = '/logout';
+  document.getElementById('logoutBtn').addEventListener('click', async () => {
+    try { await fetch('/logout', { method: 'POST' }); } catch (_) {}
+    window.location.href = '/';
   });
 
   // ─── Help Button & Modal ─────────────────────────────────────────────────
@@ -159,6 +177,24 @@ async function initNav(activeHref) {
   <li>Completed records appear in Dashboard → <em>Recent QA Checklists</em>.</li>
 </ul>`
       },
+      {
+        id: 'hHandover', label: '🤝 Handover',
+        html: `<p><strong>Log a classroom session handover</strong> — complete the readiness checklist and obtain sign-offs from Faculty, Session Producer and Programme Manager.</p>
+<h4>How to complete</h4>
+<ol>
+  <li>Fill in <strong>Session Details</strong> — date, start times, classroom, programme and role contact names.</li>
+  <li>Work through all <strong>12 Services Tested</strong> rows — mark Y or N and add comments.</li>
+  <li>Obtain sign-offs from <strong>Faculty</strong>, <strong>Session Producer</strong> and <strong>Programme Manager</strong> — record arrival time, comments and signature for each.</li>
+  <li>Add any <strong>Additional Comments</strong>, then click <strong>Submit Handover Form</strong>.</li>
+</ol>
+<h4>Tips</h4>
+<ul>
+  <li>IT Technician name is auto-filled from your login.</li>
+  <li>All three signature fields are optional.</li>
+  <li>Past records appear in the <em>Recent Handover Records</em> table below the form.</li>
+  <li>Admins can view all handover records from <strong>Admin → Handover Records</strong>.</li>
+</ul>`
+      },
     ];
 
     if (role === 'admin') {
@@ -184,6 +220,25 @@ async function initNav(activeHref) {
 </ul>`
       });
     }
+
+    TABS.push({
+      id: 'hHybrid', label: '🎥 Hybrid',
+      html: `<p><strong>Flag a classroom as hybrid for the day</strong> — instantly visible to all technicians on the Dashboard so priority setups are never missed.</p>
+<h4>How to mark a room hybrid</h4>
+<ol>
+  <li>Go to <strong>Dashboard</strong>.</li>
+  <li>In the <strong>🎥 Hybrid Classrooms Today</strong> card, select the classroom from the dropdown.</li>
+  <li>Add an optional note (e.g. "Zoom with London office" or "External guests via Teams").</li>
+  <li>Click <strong>🎥 Mark Hybrid</strong>.</li>
+</ol>
+<h4>Visibility &amp; clearing</h4>
+<ul>
+  <li>The room appears in the Hybrid card and gets a <strong>🎥 Hybrid</strong> badge on the classroom coverage tile — visible to everyone logged in.</li>
+  <li>Any technician or admin can click <strong>✕ Clear</strong> to remove the flag when the session is done.</li>
+  <li>Flags are date-scoped — they reset automatically the next day.</li>
+  <li>If a room is marked hybrid twice in a day, the note is updated rather than creating a duplicate.</li>
+</ul>`
+    });
 
     TABS.push({
       id: 'hLoans', label: '🔄 Loans',
@@ -267,7 +322,7 @@ async function initNav(activeHref) {
 // Renders today's classroom coverage into the element with the given id.
 // currentUserId is used to flag "Your submission" on the matching entry.
 // Returns the raw data array so callers can use it (e.g. for existingAlert).
-async function loadClassroomStatus(containerId, currentUserId) {
+async function loadClassroomStatus(containerId, currentUserId, hybridIds = new Set()) {
   const el = document.getElementById(containerId);
   if (!el) return [];
 
@@ -292,6 +347,11 @@ async function loadClassroomStatus(containerId, currentUserId) {
     const headerBg    = checked ? 'var(--success-light, #d1fae5)' : 'var(--gray-100, #f3f4f6)';
     const headerColor = checked ? '#065f46' : 'var(--text-muted)';
     const checkIcon   = checked ? '✅' : '○';
+
+    const isHybrid = hybridIds.has(classroom.id);
+    const hybridBadge = isHybrid
+      ? '<span style="background:#1A5FA8;color:#fff;border-radius:6px;padding:1px 8px;font-size:0.72rem;font-weight:600;margin-left:2px">🎥 Hybrid</span>'
+      : '';
 
     const subRows = classroom.submissions.map((sub) => {
       const isMe = sub.technician_id === currentUserId;
@@ -335,6 +395,7 @@ async function loadClassroomStatus(containerId, currentUserId) {
       <div style="background:${headerBg};padding:8px 12px;display:flex;align-items:center;gap:8px">
         <span style="font-size:1rem">${checkIcon}</span>
         <span style="font-weight:700;color:${headerColor}">${esc(classroom.name)}</span>
+        ${hybridBadge}
         <span style="margin-left:auto;font-size:0.75rem;color:${headerColor}">${classroom.submissions.length} submission${classroom.submissions.length !== 1 ? 's' : ''}</span>
       </div>
       ${subRows}${emptyRow}

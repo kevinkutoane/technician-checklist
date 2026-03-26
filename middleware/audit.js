@@ -14,7 +14,7 @@ const db = require('../db/database');
 function logAudit(req, action, targetType = '', targetId = null, details = '') {
   try {
     const userId = req.session && req.session.user ? req.session.user.id : null;
-    const ip     = req.ip || req.connection.remoteAddress || '';
+    const ip     = req.ip || req.socket?.remoteAddress || '';
     db.prepare(`
       INSERT INTO audit_log (user_id, action, target_type, target_id, details, ip_address)
       VALUES (?, ?, ?, ?, ?, ?)

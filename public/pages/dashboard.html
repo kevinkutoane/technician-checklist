@@ -4,19 +4,22 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="View today's classroom coverage, submission stats and equipment flags." />
   <meta name="theme-color" content="#4f46e5" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <link rel="manifest" href="/manifest.json" />
+  <link rel="icon" href="/icons/icon.svg" type="image/svg+xml" />
   <link rel="apple-touch-icon" href="/icons/icon.svg" />
   <title>Dashboard – Technician Checklist</title>
   <link rel="stylesheet" href="/css/styles.css" />
+  <script>try{var _t=localStorage.getItem('opsHubTheme');if(_t)document.documentElement.setAttribute('data-theme',_t);}catch(e){}</script>
 </head>
 
 <body>
 
 <div class="app-layout">
-  <aside class="sidebar">
+  <aside class="sidebar" aria-label="Main navigation">
     <a class="sidebar-brand" href="/">
       <span class="icon">💻</span>
       <span>Ops Hub</span>
@@ -39,6 +42,37 @@
 
   <div class="container">
     <h1 class="page-title">Dashboard</h1>
+
+    <!-- 🎥 Hybrid Classrooms Today -->
+    <div class="card mb-4">
+      <div class="card-header">
+        <span class="card-title">🎥 Hybrid Classrooms Today</span>
+        <span id="hybridBadge" style="background:var(--primary,#1A5FA8);color:#fff;padding:2px 12px;border-radius:12px;font-size:0.8rem;display:none;font-weight:600"></span>
+      </div>
+      <div id="hybridSetupsList"><div class="spinner"></div></div>
+      <div style="padding:0.75rem 1rem;border-top:1px solid var(--border)">
+        <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap">
+          <select class="form-control" id="hybridClassroomSelect" style="max-width:200px;flex:1">
+            <option value="">-- Select Classroom --</option>
+          </select>
+          <input class="form-control" type="text" id="hybridNoteInput"
+            placeholder="Optional note — e.g. Zoom with external guests…"
+            style="flex:2;max-width:360px" maxlength="200" />
+          <button class="btn btn-primary btn-sm" id="markHybridBtn">🎥 Mark Hybrid</button>
+        </div>
+        <div id="hybridError" class="alert alert-danger hidden" style="margin-top:0.5rem"></div>
+      </div>
+    </div>
+
+    <!-- 📅 Today's Schedule (Week Ahead) — hidden until upload format is finalised
+    <div class="card mb-4">
+      <div class="card-header">
+        <span class="card-title">📅 Today's Schedule</span>
+        <span id="scheduleBadge" style="background:var(--primary,#1A5FA8);color:#fff;padding:2px 12px;border-radius:12px;font-size:0.8rem;display:none;font-weight:600"></span>
+      </div>
+      <div id="weekAheadContainer"><div class="spinner"></div></div>
+    </div>
+    -->
 
     <!-- Today's Classroom Progress -->
     <div class="card mb-4">
@@ -157,7 +191,7 @@
     </div>
   </div>
 
-  <!-- Unchecked Classrooms Alert (admin only, populated by JS) -->
+  <!-- Unchecked Classrooms Alert (technicians only, populated by JS) -->
   <div id="uncheckedAlert" class="hidden"></div>
 
     <!-- Filters -->

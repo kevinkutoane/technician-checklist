@@ -15,10 +15,14 @@ const onboardingRoutes = require('./routes/onboarding');
 const qaRoutes = require('./routes/qa');
 const settingsRoutes = require('./routes/settings');
 const loansRoutes = require('./routes/loans');
+const handoverRoutes = require('./routes/handover');
+const hybridRoutes = require('./routes/hybrid');
+const weekaheadRoutes = require('./routes/weekahead');
 const { requireAuth, requireAdmin } = require('./middleware/auth');
 const db = require('./db/database');
 
 const app = express();
+app.set('trust proxy', 1);
 const PORT = process.env.PORT || 3000;
 
 // Start scheduled backup (runs daily at 02:00)
@@ -47,18 +51,23 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Session
+if (process.env.NODE_ENV === 'production' && !process.env.SESSION_SECRET) {
+  console.error('FATAL: SESSION_SECRET environment variable must be set in production');
+  process.exit(1);
+}
 const sessionSecret = process.env.SESSION_SECRET || 'checklist-secret-key-change-in-prod';
 app.use(
   session({
     secret: sessionSecret,
     resave: false,
     saveUninitialized: false,
+    rolling: true,
     store: new BetterSqlite3Store({ client: db }),
     cookie: {
       secure: process.env.NODE_ENV === 'production',
       httpOnly: true,
       sameSite: 'strict',
-      maxAge: 8 * 60 * 60 * 1000, // 8 hours
+      maxAge: 8 * 60 * 60 * 1000, // 8 hours of inactivity
     },
   })
 );
@@ -155,12 +164,21 @@ app.get('/loans', pageLimiter, requireAuth, (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'pages', 'loans.html'));
 });
 
+app.get('/handover', pageLimiter, requireAuth, (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'pages', 'handover.html'));
+});
+
+// Week Ahead page hidden until upload format is finalised — redirect to dashboard
+app.get('/week-ahead', pageLimiter, requireAuth, (req, res) => {
+  res.redirect('/dashboard');
+});
+
 app.get('/reset-password', pageLimiter, (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'pages', 'reset-password.html'));
 });
 
-// GET /logout — server-side logout; safe to navigate to directly from the browser
-app.get('/logout', (req, res) => {
+// POST /logout — CSRF-safe logout endpoint
+app.post('/logout', (req, res) => {
   req.session.destroy(() => {
     res.clearCookie('connect.sid');
     res.redirect('/');
@@ -177,6 +195,9 @@ app.use('/api/onboarding', apiLimiter, onboardingRoutes);
 app.use('/api/qa', apiLimiter, qaRoutes);
 app.use('/api/settings', apiLimiter, settingsRoutes);
 app.use('/api/loans', apiLimiter, loansRoutes);
+app.use('/api/handover', apiLimiter, handoverRoutes);
+app.use('/api/hybrid', apiLimiter, hybridRoutes);
+app.use('/api/week-ahead', apiLimiter, weekaheadRoutes);
 
 // 404 handler
 app.use((req, res) => {
